@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Loom — live discussion</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='13' font-size='13'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/style.css" />
+  <script src="/vendor/d3.v7.min.js"></script>
+</head>
+<body>
+  <header id="topbar">
+    <div class="brand">
+      <span class="mark">✦</span>
+      <span class="title" id="sessionTitle" contenteditable="true" spellcheck="false">Live Discussion</span>
+    </div>
+    <div class="controls">
+      <span id="counts" class="counts"></span>
+      <button id="pauseBtn" class="pill" title="Pause/resume all AI calls">⏸ Pause AI</button>
+      <span id="conn" class="conn" title="connection">●</span>
+    </div>
+  </header>
+
+  <main id="stage">
+    <aside id="leftRail" class="rail">
+      <div class="rail-head">Live feed</div>
+      <div id="feedList" class="rail-body"></div>
+    </aside>
+
+    <section id="graphWrap">
+      <svg id="graph"></svg>
+      <div id="tooltip" class="tooltip" hidden></div>
+      <div id="legend" class="legend"></div>
+    </section>
+
+    <aside id="rightRail" class="rail">
+      <div class="rail-head">Fact-checks &amp; boundary conditions</div>
+      <div id="checksList" class="rail-body"></div>
+    </aside>
+  </main>
+
+  <footer id="scratch">
+    <textarea id="noteInput" rows="1" placeholder="Jot a note — shorthand & typos are fine, AI tidies them…  ⏎ to commit · Shift+⏎ for newline"></textarea>
+    <button id="commitBtn" class="commit">Commit ⏎</button>
+  </footer>
+
+  <script src="/graph.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

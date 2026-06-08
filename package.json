@@ -1,0 +1,18 @@
+{
+  "name": "loom",
+  "version": "1.0.0",
+  "description": "Live discussion loom — scribe notes that self-organise into an emergent knowledge graph with live heuristics and fact-checks.",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "export": "node scripts/export.js",
+    "cost": "node scripts/cost.js",
+    "reset": "node scripts/reset.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

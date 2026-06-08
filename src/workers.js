@@ -219,9 +219,22 @@ export async function processNote(noteId, emit) {
   const jobs = [findBridges(note).then(emit)];
   if (kind === 'question' || kind === 'painpoint') jobs.push(matchHeuristic(note).then(emit));
   if (kind === 'claim' || kind === 'anecdote') jobs.push(factCheck(note).then(emit));
-  if (ABDUCE_KINDS.has(kind)) jobs.push(abduct(note).then(emit));
+  // Abduction is on-demand (/abduct), not automatic — keeps the baseline graph
+  // close to what was actually said.
   await Promise.allSettled(jobs);
   emit();
+}
+
+// /abduct: surface latent values & open questions across eligible notes on demand.
+export async function abductPass(emit) {
+  const s = store.get();
+  const eligible = s.notes.filter((n) => !n.derived && !n.abducted && ABDUCE_KINDS.has(n.kind));
+  if (!eligible.length) return;
+  for (const note of eligible.slice(0, 12)) {
+    await abduct(note);
+    store.patchNote(note.id, { abducted: true });
+    emit();
+  }
 }
 
 // ---- Periodic theme consolidation -----------------------------------------

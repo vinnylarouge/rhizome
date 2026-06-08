@@ -107,6 +107,7 @@
     switch (cmd) {
       case '/merge': flashCmd('Consolidating themes…'); post('/api/merge'); break;
       case '/abstract': flashCmd('Finding abstractions…'); post('/api/abstract'); break;
+      case '/abduct': flashCmd('Surfacing values & questions…'); post('/api/abduct'); break;
       case '/chunk': flashCmd('Chunking long points…'); post('/api/chunk'); break;
       case '/organise': case '/organize': flashCmd('Organising…'); LoomGraph.organise(); break;
       case '/saymore':

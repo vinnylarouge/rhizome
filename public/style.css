@@ -183,7 +183,7 @@ body { display: flex; flex-direction: column; }
 /* ---- "a worker is here" ring + orbiting drones ---- */
 .node-working { stroke: var(--gold); stroke-width: 2.5; animation: workpulse 1.1s ease-in-out infinite; }
 @keyframes workpulse { 0%, 100% { filter: drop-shadow(0 0 2px rgba(232, 176, 75, .5)); } 50% { filter: drop-shadow(0 0 9px rgba(232, 176, 75, .95)); } }
-.drone { fill: none; stroke: rgba(255, 255, 255, .9); stroke-width: 1.3; stroke-linejoin: round; stroke-linecap: round; filter: drop-shadow(0 0 3px rgba(255, 255, 255, .45)); }
+.drone { fill: rgba(255, 255, 255, .92); stroke: none; filter: drop-shadow(0 0 3px rgba(255, 255, 255, .55)); }
 
 /* ---- tooltip extras ---- */
 .tooltip .tt-elab { margin-top: 7px; padding-top: 6px; border-top: 1px solid var(--edge); color: var(--ink); font-size: 12.5px; line-height: 1.4; }

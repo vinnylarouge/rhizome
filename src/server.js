@@ -10,7 +10,7 @@ import { WebSocketServer } from 'ws';
 
 import * as store from './store.js';
 import { loadHeuristics } from './heuristics.js';
-import { processNote, mergeThemesPass, abstractPass, elaborate, chunkPass } from './workers.js';
+import { processNote, mergeThemesPass, abstractPass, elaborate, chunkPass, abductPass } from './workers.js';
 import { MODELS, selfTest } from './llm.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -167,6 +167,10 @@ const server = http.createServer(async (req, res) => {
   }
   if (req.method === 'POST' && url === '/api/chunk') {
     enqueue(async () => { broadcastStatus('Chunking long points…'); try { await chunkPass(broadcast); } finally { broadcastStatus(''); } });
+    return json(res, 200, { ok: true });
+  }
+  if (req.method === 'POST' && url === '/api/abduct') {
+    enqueue(async () => { broadcastStatus('Surfacing values & questions…'); try { await abductPass(broadcast); } finally { broadcastStatus(''); } });
     return json(res, 200, { ok: true });
   }
   if (req.method === 'POST' && url === '/api/pause') {

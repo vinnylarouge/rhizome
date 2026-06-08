@@ -334,17 +334,16 @@
       if (!n || n.x == null) continue;
       const ang = t * 2.6 + i * 2.1;          // orbit the node
       const rad = radius(n) + 16;
-      // rot = ang - 90° makes the chevron apex point inward, at the node it circles
-      drones.push({ id: id + i, x: n.x + Math.cos(ang) * rad, y: n.y + Math.sin(ang) * rad, rot: ang * 180 / Math.PI - 90 });
+      drones.push({ id: id + i, x: n.x + Math.cos(ang) * rad, y: n.y + Math.sin(ang) * rad });
       i++;
     }
-    gDrone.selectAll('path.drone').data(drones, (d) => d.id)
+    gDrone.selectAll('circle.drone').data(drones, (d) => d.id)
       .join(
-        (enter) => enter.append('path').attr('class', 'drone').attr('d', 'M-5,4 L0,-6 L5,4'),
+        (enter) => enter.append('circle').attr('class', 'drone').attr('r', 3),
         (u) => u,
         (ex) => ex.remove()
       )
-      .attr('transform', (d) => `translate(${d.x},${d.y}) rotate(${d.rot})`);
+      .attr('cx', (d) => d.x).attr('cy', (d) => d.y);
   }
 
   function drag(simulation) {

@@ -10,7 +10,7 @@ import { WebSocketServer } from 'ws';
 
 import * as store from './store.js';
 import { loadHeuristics } from './heuristics.js';
-import { processNote } from './workers.js';
+import { processNote, mergeThemesPass } from './workers.js';
 import { MODELS, selfTest } from './llm.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -45,26 +45,37 @@ function broadcast() {
   }
 }
 
-// --- enrichment queue (sequential — bounds cost & keeps ordering sane) ------
+// --- work queue (sequential — bounds cost, keeps ordering sane, and lets the
+//     periodic theme-merge run safely between notes rather than during one) ----
 const queue = [];
 let running = false;
 async function drain() {
   if (running) return;
   running = true;
   while (queue.length) {
-    const noteId = queue.shift();
+    const task = queue.shift();
     try {
-      await processNote(noteId, broadcast);
+      await task();
     } catch (e) {
-      console.error('[queue] processNote failed:', e.message);
+      console.error('[queue] task failed:', e.message);
     }
   }
   running = false;
 }
-function enqueue(noteId) {
-  queue.push(noteId);
+function enqueue(task) {
+  queue.push(task);
   drain();
 }
+
+// Periodic theme consolidation: at most one queued at a time, never while paused.
+let mergePending = false;
+setInterval(() => {
+  if (store.get().paused || mergePending) return;
+  mergePending = true;
+  enqueue(async () => {
+    try { await mergeThemesPass(broadcast); } finally { mergePending = false; }
+  });
+}, 60000);
 
 // --- static files -----------------------------------------------------------
 const TYPES = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json', '.svg': 'image/svg+xml' };
@@ -109,15 +120,19 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url === '/api/note') {
     const body = await readBody(req);
     if (!body.text || !body.text.trim()) return json(res, 400, { error: 'empty' });
-    const note = store.addNote({ text: body.text, speaker: body.speaker });
-    broadcast();           // node appears instantly, no LLM in the path
-    enqueue(note.id);      // enrichment happens async
+    const note = store.addNote({ text: body.text });
+    broadcast();                                      // node appears instantly, no LLM in the path
+    enqueue(() => processNote(note.id, broadcast));   // enrichment happens async
     return json(res, 200, { note });
   }
   if (req.method === 'POST' && url === '/api/note/delete') {
     const body = await readBody(req);
     store.deleteNote(body.id);
     broadcast();
+    return json(res, 200, { ok: true });
+  }
+  if (req.method === 'POST' && url === '/api/merge') {
+    enqueue(() => mergeThemesPass(broadcast)); // consolidate themes on demand
     return json(res, 200, { ok: true });
   }
   if (req.method === 'POST' && url === '/api/pause') {

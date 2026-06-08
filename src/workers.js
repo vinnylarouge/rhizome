@@ -194,3 +194,38 @@ export async function processNote(noteId, emit) {
   await Promise.allSettled(jobs);
   emit();
 }
+
+// ---- Periodic theme consolidation -----------------------------------------
+// Runs on a timer (server.js), serialized through the same queue as note
+// processing so it never races a note's theme attachment. Conservative: only
+// merges themes that clearly name the same concept.
+export async function mergeThemesPass(emit) {
+  const emergent = store.get().themes.filter((t) => t.kind !== 'anchor');
+  if (emergent.length < 3) return; // nothing worth consolidating yet
+  const list = emergent.map((t) => `${t.id} :: ${t.label} (${t.noteIds.length})`).join('\n');
+  const sys =
+    'You consolidate a list of emergent discussion themes. Identify groups of themes ' +
+    'that name the SAME concept — synonyms, rephrasings, or trivial variants ("AI Trust" / ' +
+    '"Trust in AI"). Be conservative: only merge themes that clearly refer to the same thing; ' +
+    'never merge themes that are merely related or adjacent — keeping real distinctions matters. ' +
+    'For each group pick the clearest canonical Title Case label.\n' +
+    'Reply ONLY with JSON: {"merges":[{"canonical":"Label","ids":["id1","id2"]}]}. ' +
+    'Empty list if nothing should merge.';
+  const out = await chatJSON({ tier: 'fast', system: sys, user: `Themes (id :: label (note count)):\n${list}`, label: 'merge', maxTokens: 400 });
+  if (!out || !Array.isArray(out.merges)) return;
+
+  const valid = new Set(emergent.map((t) => t.id));
+  let merged = 0;
+  for (const m of out.merges) {
+    if (!m || !Array.isArray(m.ids)) continue;
+    const ids = m.ids.filter((id) => valid.has(id));
+    if (ids.length < 2) continue;
+    const res = store.mergeThemes(ids, m.canonical);
+    if (res) {
+      merged++;
+      ids.forEach((id) => valid.delete(id)); // consumed ids can't be reused this pass
+      valid.add(res.survivor.id);
+    }
+  }
+  if (merged) emit();
+}

@@ -34,7 +34,7 @@
   }
 
   // ---- left rail: live activity feed of AI-generated structure ----
-  const FEED_ICON = { theme: '✦', bridge: '↔', refine: '✎', heuristic: '◆', factcheck: '✓', boundary: '⟂', principle: '↳' };
+  const FEED_ICON = { theme: '✦', bridge: '↔', refine: '✎', heuristic: '◆', factcheck: '✓', boundary: '⟂', principle: '↳', merge: '∪' };
   let lastFeedSig = '';
   function renderFeed(s) {
     const el = document.getElementById('feedList');

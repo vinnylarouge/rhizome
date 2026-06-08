@@ -145,6 +145,7 @@ body { display: flex; flex-direction: column; }
 .fi-factcheck .fi-icon { color: var(--verified); }
 .fi-boundary .fi-icon { color: var(--painpoints); }
 .fi-principle .fi-icon { color: var(--questions); }
+.fi-merge .fi-icon { color: var(--theme); }
 
 /* ---- graph ---- */
 #graphWrap { position: relative; overflow: hidden; background:

@@ -182,6 +182,51 @@ export function upsertEmergentTheme(label, summary) {
   return theme;
 }
 
+// Merge several emergent themes into one. The survivor is the theme with the most
+// notes; all notes and bridges are repointed to it, and duplicate/self-loop bridges
+// are cleaned up. Returns {survivor, mergedLabels} or null if nothing to merge.
+export function mergeThemes(ids, canonicalLabel) {
+  const idset = new Set(ids);
+  const group = state.themes.filter((t) => t.kind !== 'anchor' && idset.has(t.id));
+  if (group.length < 2) return null;
+  group.sort((a, b) => b.noteIds.length - a.noteIds.length);
+  const survivor = group[0];
+  if (canonicalLabel && canonicalLabel.trim()) survivor.label = canonicalLabel.trim();
+  const losers = group.slice(1);
+  const mergedLabels = losers.map((t) => t.label);
+
+  for (const loser of losers) {
+    for (const nid of loser.noteIds) {
+      const note = state.notes.find((n) => n.id === nid);
+      if (note) {
+        note.themeIds = note.themeIds.filter((x) => x !== loser.id);
+        if (!note.themeIds.includes(survivor.id)) note.themeIds.push(survivor.id);
+      }
+      if (!survivor.noteIds.includes(nid)) survivor.noteIds.push(nid);
+    }
+    for (const b of state.bridges) {
+      if (b.source === loser.id) b.source = survivor.id;
+      if (b.target === loser.id) b.target = survivor.id;
+    }
+    state.themes = state.themes.filter((t) => t.id !== loser.id);
+  }
+
+  // Drop self-loops and duplicate edges created by repointing.
+  const seen = new Set();
+  state.bridges = state.bridges.filter((b) => {
+    if (b.source === b.target) return false;
+    const key = [b.source, b.target].sort().join('|');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  logEvent('merge', { into: survivor.id, label: survivor.label, merged: mergedLabels });
+  addFeedItem({ type: 'merge', head: 'merged', text: `${mergedLabels.join(', ')} → ${survivor.label}` });
+  scheduleSave();
+  return { survivor, mergedLabels };
+}
+
 export function addBridge({ source, target, type, rationale }) {
   // Avoid duplicate edges between the same pair (either direction).
   const exists = state.bridges.find(

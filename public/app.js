@@ -31,49 +31,32 @@
     syncPauseBtn();
     LoomGraph.update(s);
     renderFeed(s);
-    renderChecks(s);
   }
 
   // ---- left rail: live activity feed of AI-generated structure ----
   const FEED_ICON = { theme: '✦', bridge: '↔', refine: '✎', heuristic: '◆', factcheck: '✓', boundary: '⟂', principle: '↳' };
+  let lastFeedSig = '';
   function renderFeed(s) {
     const el = document.getElementById('feedList');
-    const items = [...(s.feed || [])].reverse();
-    if (!items.length) { el.innerHTML = '<div class="empty">As you commit notes, generated themes, connections and refinements will stream in here.</div>'; return; }
-    el.innerHTML = items.map((it) => `
+    const items = [...(s.feed || [])].reverse(); // newest first
+    // Skip re-render (and the flash it causes) when the feed hasn't actually changed.
+    const sig = items.length + ':' + (items[0] ? items[0].id : '');
+    if (sig === lastFeedSig) return;
+    lastFeedSig = sig;
+    if (!items.length) { el.innerHTML = '<div class="empty">As you commit notes, generated themes, connections and refinements will stream in here.</div>'; el.scrollTop = 0; return; }
+    el.innerHTML = items.map((it) => {
+      const slug = it.head ? it.head.toLowerCase().replace(/[^a-z0-9]+/g, '-') : '';
+      const head = it.head ? `<span class="fi-head fh-${slug}">${esc(it.head)}</span>` : '';
+      return `
       <div class="feed-item fi-${it.type}">
         <span class="fi-icon">${FEED_ICON[it.type] || '·'}</span>
         <div class="fi-main">
-          <div class="fi-text">${esc(it.text)}</div>
+          <div class="fi-text">${head}${esc(it.text)}</div>
           ${it.detail ? `<div class="fi-detail">${esc(it.detail)}</div>` : ''}
         </div>
-      </div>`).join('');
-  }
-
-  // ---- right rail: fact-checks + boundary + generalisations ----
-  function renderChecks(s) {
-    const el = document.getElementById('checksList');
-    // Group by note so a claim's verdict, boundary and principle read as one card.
-    const byNote = new Map();
-    const slot = (id) => { if (!byNote.has(id)) byNote.set(id, {}); return byNote.get(id); };
-    for (const f of s.factChecks) slot(f.noteId).fc = f;
-    for (const b of s.boundaryConditions) slot(b.noteId).boundary = b;
-    for (const g of s.generalisations) slot(g.noteId).gen = g;
-
-    const ordered = [...byNote.entries()].reverse();
-    if (!ordered.length) { el.innerHTML = '<div class="empty">Fact-checks and boundary conditions appear here when claims or anecdotes are raised.</div>'; return; }
-
-    el.innerHTML = ordered.map(([noteId, g]) => {
-      const note = noteById.get(noteId);
-      const v = g.fc ? g.fc.verdict : 'unknown';
-      return `<div class="card fc-card ${v}">
-        ${g.fc ? `<span class="verdict ${v}">${esc(v)}</span>` : ''}
-        ${g.fc ? `<div class="ctitle">${esc(g.fc.statement)}</div><div class="cbody">${esc(g.fc.detail)}</div>` : ''}
-        ${g.boundary ? `<div class="boundary">${esc(g.boundary.text)}</div>` : ''}
-        ${g.gen ? `<div class="principle">${esc(g.gen.principle)}</div>` : ''}
-        ${note ? `<div class="quote">${esc(trim(disp(note)))}</div>` : ''}
       </div>`;
     }).join('');
+    el.scrollTop = 0; // keep the newest in view
   }
 
   // ---- scratchpad (single field; Chatham House — no provenance captured) ----

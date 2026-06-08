@@ -103,8 +103,10 @@ function shortLabel(id) {
 }
 
 // Append to the activity feed (left rail). Capped so it never grows unbounded.
-export function addFeedItem({ type, text, detail }) {
-  state.feed.push({ id: rid('fd'), ts: new Date().toISOString(), type, text, detail: detail || '' });
+// `head` is an optional chip rendered as a header on the feed line — used for the
+// connection type ("tension") on bridges and the verdict on fact-checks.
+export function addFeedItem({ type, text, detail, head }) {
+  state.feed.push({ id: rid('fd'), ts: new Date().toISOString(), type, text, detail: detail || '', head: head || null });
   if (state.feed.length > 300) state.feed = state.feed.slice(-300);
   scheduleSave();
 }
@@ -189,7 +191,7 @@ export function addBridge({ source, target, type, rationale }) {
   const bridge = { id: rid('b'), source, target, type: type || 'relates', rationale: rationale || '', ts: new Date().toISOString() };
   state.bridges.push(bridge);
   logEvent('bridge', bridge);
-  addFeedItem({ type: 'bridge', text: `${bridge.type} · ${shortLabel(source)} ↔ ${shortLabel(target)}`, detail: rationale });
+  addFeedItem({ type: 'bridge', head: bridge.type, text: `${shortLabel(source)} ↔ ${shortLabel(target)}`, detail: rationale });
   scheduleSave();
   return bridge;
 }
@@ -207,7 +209,7 @@ export function addFactCheck(fc) {
   const f = { id: rid('f'), ts: new Date().toISOString(), ...fc };
   state.factChecks.push(f);
   logEvent('factcheck', f);
-  addFeedItem({ type: 'factcheck', text: `${f.verdict} · ${trunc(f.statement, 56)}`, detail: trunc(f.detail, 90) });
+  addFeedItem({ type: 'factcheck', head: f.verdict, text: trunc(f.statement, 80), detail: trunc(f.detail, 130) });
   scheduleSave();
   return f;
 }

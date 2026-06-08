@@ -75,7 +75,11 @@ function serveStatic(req, res) {
   if (!full.startsWith(PUBLIC)) { res.writeHead(403); return res.end('forbidden'); }
   fs.readFile(full, (err, buf) => {
     if (err) { res.writeHead(404); return res.end('not found'); }
-    res.writeHead(200, { 'Content-Type': TYPES[path.extname(full)] || 'application/octet-stream' });
+    res.writeHead(200, {
+      'Content-Type': TYPES[path.extname(full)] || 'application/octet-stream',
+      // No caching: this tool is iterated live, so a reload must always get fresh assets.
+      'Cache-Control': 'no-store, must-revalidate',
+    });
     res.end(buf);
   });
 }

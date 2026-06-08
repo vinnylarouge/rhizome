@@ -62,7 +62,7 @@ body { display: flex; flex-direction: column; }
 .conn.down { color: var(--contested); }
 
 /* ---- stage ---- */
-#stage { flex: 1 1 auto; display: grid; grid-template-columns: 320px 1fr 360px; min-height: 0; }
+#stage { flex: 1 1 auto; display: grid; grid-template-columns: 340px 1fr; min-height: 0; }
 .rail {
   background: var(--bg-rail); display: flex; flex-direction: column; min-height: 0;
   border-left: 1px solid var(--line); border-right: 1px solid var(--line);
@@ -117,12 +117,27 @@ body { display: flex; flex-direction: column; }
 .empty { color: var(--ink-dim); font-size: 12.5px; font-style: italic; padding: 8px 4px; }
 
 /* ---- live feed (left rail) ---- */
-.feed-item { display: flex; gap: 9px; align-items: flex-start; padding: 8px 4px; border-bottom: 1px solid var(--line); animation: rise .35s ease; }
+.feed-item { display: flex; gap: 9px; align-items: flex-start; padding: 9px 6px; border-bottom: 1px solid var(--line); border-radius: 7px; }
+.feed-item:first-child { animation: rise .35s ease; }   /* only the newest slides in */
 .feed-item:last-child { border-bottom: none; }
 .fi-icon { flex: 0 0 18px; text-align: center; font-size: 13px; color: var(--ink-dim); margin-top: 1px; }
 .fi-main { min-width: 0; }
-.fi-text { font-size: 13px; line-height: 1.36; color: var(--ink); word-wrap: break-word; }
-.fi-detail { font-size: 11.5px; color: var(--ink-dim); margin-top: 2px; font-style: italic; }
+.fi-text { font-size: 13px; line-height: 1.4; color: var(--ink); word-wrap: break-word; overflow-wrap: anywhere; }
+.fi-detail { font-size: 11.5px; color: var(--ink-dim); margin-top: 3px; font-style: italic; line-height: 1.4; }
+
+/* header chip — connection type ("tension") or fact-check verdict */
+.fi-head { display: inline-block; font-size: 10px; text-transform: uppercase; letter-spacing: .6px; font-weight: 600; padding: 1px 6px; border-radius: 5px; margin-right: 6px; vertical-align: 1px; background: rgba(155, 147, 196, .16); color: var(--bridge); }
+.fh-verified { background: rgba(63, 182, 192, .16); color: var(--verified); }
+.fh-needs-nuance { background: rgba(232, 176, 75, .16); color: var(--nuance); }
+.fh-contested { background: rgba(232, 112, 59, .16); color: var(--contested); }
+.fh-unknown { background: rgba(138, 143, 156, .16); color: var(--unknown); }
+
+/* technical outputs get a subtle highlight so they stand out in the stream */
+.fi-factcheck, .fi-boundary, .fi-principle { background: rgba(255, 255, 255, .035); padding-left: 9px; border-left: 2px solid var(--line); }
+.fi-factcheck { border-left-color: var(--verified); }
+.fi-boundary { border-left-color: var(--painpoints); }
+.fi-principle { border-left-color: var(--questions); }
+
 .fi-theme .fi-icon { color: var(--theme); }
 .fi-bridge .fi-icon { color: var(--bridge); }
 .fi-refine .fi-icon { color: var(--values); }
@@ -142,10 +157,13 @@ body { display: flex; flex-direction: column; }
 
 /* Bridges are one neutral colour so they never clash with parent hues; "tension"
    is distinguished by weight + a slow pulse (not by a red/green code). Type on hover. */
-.bridge { stroke: var(--bridge); stroke-width: 1.6; fill: none; opacity: 0; animation: draw .9s ease forwards; }
+.bridge { stroke: var(--bridge); stroke-width: 1.6; fill: none; opacity: 0; animation: draw .9s ease forwards; pointer-events: none; }
 @keyframes draw { to { opacity: .7; } }
 .bridge.tension { stroke-width: 2.8; animation: draw .9s ease forwards, pulse 3s ease-in-out 1s infinite; }
 @keyframes pulse { 0%, 100% { opacity: .55; } 50% { opacity: .95; } }
+/* fat invisible path makes the thin edge easy to hover for inspection */
+.bridge-hit { stroke: transparent; stroke-width: 16; fill: none; pointer-events: stroke; cursor: pointer; }
+.bridge-g:hover .bridge { opacity: 1 !important; stroke-width: 3.4; }
 
 /* notes coloured by parent type */
 .node-note { fill: #7c8190; stroke: #0e0f13; stroke-width: 1.4; cursor: pointer; }
@@ -162,8 +180,15 @@ body { display: flex; flex-direction: column; }
 .node-anchor.p-painpoints { stroke: var(--painpoints); }
 .node-anchor.p-questions { stroke: var(--questions); }
 
-.node-enter { animation: pop .45s cubic-bezier(.2,1.2,.3,1); }
+/* New nodes: pop in + a white glow that fades, reverting to the node's base style
+   (no `forwards`, so theme nodes regain their gold glow afterwards). */
+.node-glow { animation: pop .5s cubic-bezier(.2, 1.2, .3, 1), glowpulse 2.6s ease-out; }
 @keyframes pop { from { opacity: 0; r: 0; } }
+@keyframes glowpulse {
+  0%   { filter: drop-shadow(0 0 11px rgba(255, 255, 255, .95)); }
+  55%  { filter: drop-shadow(0 0 7px rgba(255, 255, 255, .55)); }
+  100% { filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0)); }
+}
 
 .label-theme { font-family: var(--serif); fill: var(--ink); font-size: 14px; pointer-events: none; text-anchor: middle; }
 .label-anchor { font-family: var(--serif); font-size: 15px; letter-spacing: 1px; pointer-events: none; text-anchor: middle; }
@@ -177,6 +202,7 @@ body { display: flex; flex-direction: column; }
   pointer-events: none; z-index: 10; backdrop-filter: blur(3px);
 }
 .tooltip .tt-meta { color: var(--ink-dim); font-size: 11px; margin-top: 5px; }
+.tooltip .tt-bridge { font-family: var(--serif); color: var(--bridge); font-size: 13px; text-transform: capitalize; letter-spacing: .3px; }
 .legend {
   position: absolute; bottom: 12px; left: 14px; font-size: 11px; color: var(--ink-dim);
   display: flex; gap: 13px; flex-wrap: wrap; align-items: center;

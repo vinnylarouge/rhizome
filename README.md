@@ -32,12 +32,13 @@ Watch the terminal for `self-test (OpenAI reachability): PASS ✓`.
   painpoints**, **violet = open questions**; cream = emergent theme. Legend
   bottom-left. Notes also sit near their labelled anchor, so colour is never the
   only cue.
-- **Left rail = live feed** of what the AI is generating (new themes, bridges,
-  refinements, fact-checks). **Right rail = fact-checks & boundary conditions** —
-  your technical-correction reference.
+- **One side panel = live feed** (newest on top) of everything the AI generates:
+  refinements, new themes, bridges (with the connection **type** as a header),
+  heuristics, and **fact-checks / boundary conditions** (highlighted, with the
+  verdict as a chip). New graph nodes glow briefly as they arrive.
 - **⏸ Pause AI** halts all outbound API calls instantly (you keep taking notes).
-- **Edit the title** (top-left) by clicking it. Hover any node to read it; drag to
-  arrange; scroll to zoom.
+- **Edit the title** (top-left) by clicking it. Hover a node to read it; **hover an
+  edge to see the connection's type and rationale**; drag to arrange; scroll to zoom.
 
 ### What the workers do (the live "subagents")
 

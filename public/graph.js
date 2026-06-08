@@ -114,19 +114,25 @@
         (ex) => ex.remove()
       );
 
-    // bridges (curved, coloured, animate in)
-    gBridge.selectAll('path.bridge').data(links.filter((l) => l.kind === 'bridge'), (d) => d.id)
+    // bridges: a fat invisible hit-path (easy to hover) + the visible curved stroke
+    gBridge.selectAll('g.bridge-g').data(links.filter((l) => l.kind === 'bridge'), (d) => d.id)
       .join(
-        (enter) => enter.append('path').attr('class', (d) => 'bridge ' + d.type)
-          .append('title').text((d) => `${d.type}: ${d.rationale}`).select(function () { return this.parentNode; }),
-        (u) => u, (ex) => ex.remove()
+        (enter) => {
+          const g = enter.append('g').attr('class', 'bridge-g')
+            .on('mousemove', showBridgeTip).on('mouseleave', hideTip);
+          g.append('path').attr('class', 'bridge-hit');
+          g.append('path').attr('class', (d) => 'bridge ' + d.type);
+          return g;
+        },
+        (u) => { u.select('path.bridge').attr('class', (d) => 'bridge ' + d.type); return u; },
+        (ex) => ex.remove()
       );
 
-    // nodes
+    // nodes — newly-appeared ones get a temporary glow (tracked in `glowing`)
     const nodeSel = gNode.selectAll('circle.node').data(nodes, (d) => d.id)
       .join(
         (enter) => enter.append('circle')
-          .attr('class', (d) => nodeClass(d) + (firstSeen.has(d.id) ? '' : ' node-enter'))
+          .attr('class', (d) => { if (!firstSeen.has(d.id)) { glowing.add(d.id); scheduleGlowClear(d.id); } return nodeClass(d); })
           .attr('r', radius)
           .call(drag(sim))
           .on('mousemove', showTip).on('mouseleave', hideTip),
@@ -152,21 +158,31 @@
   }
 
   const ANCHOR_KEY = { 'anchor-values': 'values', 'anchor-painpoints': 'painpoints', 'anchor-questions': 'questions' };
+  const glowing = new Set();
+  function scheduleGlowClear(id) {
+    setTimeout(() => {
+      glowing.delete(id);
+      gNode.selectAll('circle.node').filter((d) => d.id === id).attr('class', (d) => nodeClass(d));
+    }, 2600);
+  }
   function nodeClass(d) {
-    if (d.type === 'anchor') return 'node node-anchor p-' + (ANCHOR_KEY[d.id] || 'none');
-    if (d.type === 'theme') return 'node node-theme';
-    return 'node node-note p-' + (d.parent || 'none');
+    let c;
+    if (d.type === 'anchor') c = 'node node-anchor p-' + (ANCHOR_KEY[d.id] || 'none');
+    else if (d.type === 'theme') c = 'node node-theme';
+    else c = 'node node-note p-' + (d.parent || 'none');
+    return glowing.has(d.id) ? c + ' node-glow' : c;
   }
 
+  function arcPath(d) {
+    const dx = d.target.x - d.source.x, dy = d.target.y - d.source.y;
+    const dr = Math.hypot(dx, dy) * 1.6;
+    return `M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`;
+  }
   function tick() {
     gLink.selectAll('line.link')
       .attr('x1', (d) => d.source.x).attr('y1', (d) => d.source.y)
       .attr('x2', (d) => d.target.x).attr('y2', (d) => d.target.y);
-    gBridge.selectAll('path.bridge').attr('d', (d) => {
-      const dx = d.target.x - d.source.x, dy = d.target.y - d.source.y;
-      const dr = Math.hypot(dx, dy) * 1.6;
-      return `M${d.source.x},${d.source.y}A${dr},${dr} 0 0,1 ${d.target.x},${d.target.y}`;
-    });
+    gBridge.selectAll('path').attr('d', (d) => (d && d.source && d.target ? arcPath(d) : null));
     gNode.selectAll('circle.node').attr('cx', (d) => d.x).attr('cy', (d) => d.y);
     gLabel.selectAll('text.glabel')
       .attr('x', (d) => d.x)
@@ -196,6 +212,14 @@
       .style('top', (event.clientY - wrap.top + 12) + 'px');
   }
   function hideTip() { tooltip.attr('hidden', true); }
+
+  function showBridgeTip(event, d) {
+    const html = `<div class="tt-bridge">${escapeHtml(d.type)}</div><div class="tt-meta">${escapeHtml(d.rationale || 'connection')}</div>`;
+    const wrap = document.getElementById('graphWrap').getBoundingClientRect();
+    tooltip.html(html).attr('hidden', null)
+      .style('left', Math.min(event.clientX - wrap.left + 12, wrap.width - 290) + 'px')
+      .style('top', (event.clientY - wrap.top + 12) + 'px');
+  }
 
   function updateCounts(state) {
     const emergent = state.themes.filter((t) => t.kind !== 'anchor').length;

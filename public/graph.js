@@ -333,13 +333,14 @@
       const n = nodeById.get(id);
       if (!n || n.x == null) continue;
       const ang = t * 2.6 + i * 2.1;          // orbit the node
-      const rad = radius(n) + 15;
-      drones.push({ id: id + i, x: n.x + Math.cos(ang) * rad, y: n.y + Math.sin(ang) * rad, rot: ang * 180 / Math.PI + 90 });
+      const rad = radius(n) + 16;
+      // rot = ang - 90° makes the chevron apex point inward, at the node it circles
+      drones.push({ id: id + i, x: n.x + Math.cos(ang) * rad, y: n.y + Math.sin(ang) * rad, rot: ang * 180 / Math.PI - 90 });
       i++;
     }
     gDrone.selectAll('path.drone').data(drones, (d) => d.id)
       .join(
-        (enter) => enter.append('path').attr('class', 'drone').attr('d', 'M-5,4 L0,-6 L5,4 L0,1 Z'),
+        (enter) => enter.append('path').attr('class', 'drone').attr('d', 'M-5,4 L0,-6 L5,4'),
         (u) => u,
         (ex) => ex.remove()
       )

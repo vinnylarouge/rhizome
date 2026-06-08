@@ -14,7 +14,8 @@
   --values: #4ea0e0;       /* blue */
   --painpoints: #e8943b;   /* orange */
   --questions: #b483e6;    /* violet */
-  --theme: #ead9a0;        /* warm cream — set apart by luminance + size, not hue */
+  --theme: #ecebe6;        /* simple white theme nodes (distinguished by size, not hue) */
+  --frame: #d6469f;        /* magenta — the conceptual layer (metaphors & frames) */
   --bridge: #9b93c4;       /* neutral lilac for connections */
 
   /* Edge-relationship palette — mutually distinguishable under protanopia.
@@ -160,17 +161,17 @@ body { display: flex; flex-direction: column; }
 .fi-boundary .fi-icon { color: var(--painpoints); }
 .fi-principle .fi-icon { color: var(--questions); }
 .fi-merge .fi-icon { color: var(--theme); }
-.fi-abstract .fi-icon { color: var(--questions); }
+.fi-abstract .fi-icon { color: var(--frame); }
 .fi-elaborate .fi-icon { color: var(--gold); }
-.fi-abstract { background: rgba(180, 131, 230, .08); padding-left: 9px; border-left: 2px solid var(--questions); }
+.fi-abstract { background: rgba(214, 70, 159, .09); padding-left: 9px; border-left: 2px solid var(--frame); }
 .fi-head { font-size: 12px; } /* scale chip with the larger feed text */
 
-/* ---- frame (abstraction) nodes ---- */
-.node-frame { fill: #2a2540; stroke: var(--questions); stroke-width: 2; opacity: .96;
-  filter: drop-shadow(0 0 7px rgba(180, 131, 230, .35)); }
+/* ---- frame (abstraction) nodes: magenta conceptual layer ---- */
+.node-frame { fill: #2e2030; stroke: var(--frame); stroke-width: 2; opacity: .96;
+  filter: drop-shadow(0 0 7px rgba(214, 70, 159, .45)); }
 .node-frame.frame-metaphor { stroke-dasharray: 3 2; }
-.label-frame { font-family: var(--serif); font-style: italic; fill: #cdb6ec; font-size: 14px; pointer-events: none; text-anchor: middle; }
-.frame-link { stroke: var(--questions); stroke-width: 1.2; stroke-dasharray: 3 4; opacity: .3; }
+.label-frame { font-family: var(--serif); font-style: italic; fill: #f0a8d4; font-size: 14px; pointer-events: none; text-anchor: middle; }
+.frame-link { stroke: var(--frame); stroke-width: 1.2; stroke-dasharray: 3 4; opacity: .32; }
 
 /* ---- hypernode-circles (/organise) ---- */
 .hull { fill: rgba(231, 227, 216, .035); stroke: rgba(231, 227, 216, .16); stroke-width: 1.2; stroke-dasharray: 5 5; pointer-events: none; transition: r .4s ease; }
@@ -182,14 +183,14 @@ body { display: flex; flex-direction: column; }
 /* ---- "a worker is here" ring + orbiting drones ---- */
 .node-working { stroke: var(--gold); stroke-width: 2.5; animation: workpulse 1.1s ease-in-out infinite; }
 @keyframes workpulse { 0%, 100% { filter: drop-shadow(0 0 2px rgba(232, 176, 75, .5)); } 50% { filter: drop-shadow(0 0 9px rgba(232, 176, 75, .95)); } }
-.drone { fill: var(--gold); stroke: #1a1d26; stroke-width: .5; filter: drop-shadow(0 0 4px rgba(232, 176, 75, .9)); }
+.drone { fill: none; stroke: rgba(255, 255, 255, .9); stroke-width: 1.3; stroke-linejoin: round; stroke-linecap: round; filter: drop-shadow(0 0 3px rgba(255, 255, 255, .45)); }
 
 /* ---- tooltip extras ---- */
 .tooltip .tt-elab { margin-top: 7px; padding-top: 6px; border-top: 1px solid var(--edge); color: var(--ink); font-size: 12.5px; line-height: 1.4; }
-.tooltip .tt-frame { font-family: var(--serif); font-style: italic; color: var(--questions); font-size: 12px; text-transform: capitalize; }
+.tooltip .tt-frame { font-family: var(--serif); font-style: italic; color: var(--frame); font-size: 12px; text-transform: capitalize; }
 
 /* ---- legend: abstraction node ---- */
-.legend .lg-frame::before { content: "\25C6"; color: var(--questions); }
+.legend .lg-frame::before { content: "\25C6"; color: var(--frame); }
 
 /* ---- status pill (chunky-command progress) ---- */
 .status-pill {
@@ -231,8 +232,8 @@ body { display: flex; flex-direction: column; }
 .node-note.p-painpoints { fill: var(--painpoints); }
 .node-note.p-questions { fill: var(--questions); }
 
-/* emergent themes: cream, set apart by luminance + size, not hue */
-.node-theme { fill: var(--theme); stroke: #0e0f13; stroke-width: 2; filter: drop-shadow(0 0 9px rgba(234,217,160,.4)); }
+/* emergent themes: plain white, set apart by size, not hue */
+.node-theme { fill: var(--theme); stroke: #0e0f13; stroke-width: 2; filter: drop-shadow(0 0 6px rgba(255,255,255,.28)); }
 
 /* anchors: hollow rings in their parent colour */
 .node-anchor { fill: none; stroke-width: 2.5; stroke-dasharray: 4 3; }

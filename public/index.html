@@ -15,6 +15,7 @@
       <span class="title" id="sessionTitle" contenteditable="true" spellcheck="false">Live Discussion</span>
     </div>
     <div class="controls">
+      <span id="statusPill" class="status-pill" hidden></span>
       <span id="counts" class="counts"></span>
       <button id="pauseBtn" class="pill" title="Pause/resume all AI calls">⏸ Pause AI</button>
       <span id="conn" class="conn" title="connection">●</span>
@@ -35,8 +36,14 @@
   </main>
 
   <footer id="scratch">
-    <textarea id="noteInput" rows="1" placeholder="Jot a note — shorthand & typos are fine, AI tidies them…  ⏎ to commit · Shift+⏎ for newline"></textarea>
-    <button id="commitBtn" class="commit">Commit ⏎</button>
+    <div class="cmd-hint">
+      commands · <b>/organise</b> group points · <b>/abstract</b> find metaphors &amp; frames ·
+      <b>/chunk</b> split long points · <b>/merge</b> tidy themes · select a feed item then <b>/saymore</b>
+    </div>
+    <div class="scratch-row">
+      <textarea id="noteInput" rows="1" placeholder="Jot a note — shorthand & typos are fine, AI tidies them…  ⏎ to commit · Shift+⏎ for newline"></textarea>
+      <button id="commitBtn" class="commit">Commit ⏎</button>
+    </div>
   </footer>
 
   <script src="/graph.js"></script>

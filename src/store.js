@@ -33,6 +33,7 @@ function freshState() {
     boundaryConditions: [],
     generalisations: [],
     feed: [], // reverse-chron activity log of AI-generated structure (left rail)
+    frames: [], // conceptual abstractions (metaphors / frames) found via /abstract
   };
 }
 
@@ -50,6 +51,7 @@ export function load() {
         }
       }
       if (!Array.isArray(state.feed)) state.feed = [];
+      if (!Array.isArray(state.frames)) state.frames = [];
       console.log(`[store] resumed session with ${state.notes.length} notes`);
     } catch (e) {
       console.error('[store] session.json unreadable, backing up and starting fresh:', e.message);
@@ -94,21 +96,48 @@ function logEvent(type, payload) {
 
 const rid = (p) => p + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
-// A short human label for a node id, used in feed lines.
+// A human label for a node id, used in feed lines (kept full — titles aren't clamped).
 function shortLabel(id) {
   const n = state.notes.find((x) => x.id === id);
-  if (n) return trunc(n.clean || n.text, 46);
+  if (n) return trunc(n.clean || n.text, 160);
   const t = state.themes.find((x) => x.id === id);
   return t ? t.label : id;
 }
 
 // Append to the activity feed (left rail). Capped so it never grows unbounded.
-// `head` is an optional chip rendered as a header on the feed line — used for the
-// connection type ("tension") on bridges and the verdict on fact-checks.
-export function addFeedItem({ type, text, detail, head }) {
-  state.feed.push({ id: rid('fd'), ts: new Date().toISOString(), type, text, detail: detail || '', head: head || null });
+// `head` is an optional chip rendered as a header on the feed line. `ref` is the id
+// of the graph element (node/theme/frame/bridge) this entry points to, so clicking
+// the feed line can highlight it in the graph.
+export function addFeedItem({ type, text, detail, head, ref }) {
+  state.feed.push({ id: rid('fd'), ts: new Date().toISOString(), type, text, detail: detail || '', head: head || null, ref: ref || null });
   if (state.feed.length > 300) state.feed = state.feed.slice(-300);
   scheduleSave();
+}
+
+// A conceptual abstraction (metaphor or frame) spanning one or more themes.
+export function addFrame({ name, frameKind, gist, themeIds }) {
+  const norm = (name || '').trim();
+  if (!norm) return null;
+  let f = state.frames.find((x) => x.name.toLowerCase() === norm.toLowerCase());
+  if (f) {
+    if (gist && gist.length > f.gist.length) f.gist = gist;
+    for (const t of themeIds || []) if (!f.themeIds.includes(t)) f.themeIds.push(t);
+    scheduleSave();
+    return f;
+  }
+  f = {
+    id: rid('fr'),
+    name: norm,
+    frameKind: frameKind === 'metaphor' ? 'metaphor' : 'frame',
+    gist: gist || '',
+    themeIds: (themeIds || []).slice(),
+    ts: new Date().toISOString(),
+  };
+  state.frames.push(f);
+  logEvent('frame', f);
+  addFeedItem({ type: 'abstract', head: f.frameKind, text: f.name, detail: f.gist, ref: f.id });
+  scheduleSave();
+  return f;
 }
 
 // --- Mutations. Each returns the created/changed entity and triggers save + log. ---
@@ -134,6 +163,26 @@ export function patchNote(id, fields) {
   const n = state.notes.find((x) => x.id === id);
   if (n) { Object.assign(n, fields); scheduleSave(); }
   return n;
+}
+
+// A note the AI inferred (abducted), not something a participant said. Marked
+// `derived` so the UI can ghost it, and it is NOT re-enriched (already classified).
+export function addDerivedNote({ text, kind, parent, derivedFrom }) {
+  const note = {
+    id: rid('n'),
+    text: text.trim(),
+    clean: text.trim(),
+    parent: parent || null,
+    ts: new Date().toISOString(),
+    kind,
+    themeIds: [],
+    derived: true,
+    derivedFrom: derivedFrom || null,
+  };
+  state.notes.push(note);
+  logEvent('derived-note', note);
+  scheduleSave();
+  return note;
 }
 
 export function deleteNote(id) {
@@ -174,7 +223,7 @@ export function upsertEmergentTheme(label, summary) {
     theme = { id: rid('t'), label: norm, kind: 'emergent', summary: summary || '', noteIds: [] };
     state.themes.push(theme);
     logEvent('theme', theme);
-    addFeedItem({ type: 'theme', text: `New theme · ${norm}` });
+    addFeedItem({ type: 'theme', text: `New theme · ${norm}`, ref: theme.id });
   } else if (summary && summary.length > theme.summary.length) {
     theme.summary = summary;
   }
@@ -222,7 +271,7 @@ export function mergeThemes(ids, canonicalLabel) {
   });
 
   logEvent('merge', { into: survivor.id, label: survivor.label, merged: mergedLabels });
-  addFeedItem({ type: 'merge', head: 'merged', text: `${mergedLabels.join(', ')} → ${survivor.label}` });
+  addFeedItem({ type: 'merge', head: 'merged', text: `${mergedLabels.join(', ')} → ${survivor.label}`, ref: survivor.id });
   scheduleSave();
   return { survivor, mergedLabels };
 }
@@ -236,7 +285,7 @@ export function addBridge({ source, target, type, rationale }) {
   const bridge = { id: rid('b'), source, target, type: type || 'relates', rationale: rationale || '', ts: new Date().toISOString() };
   state.bridges.push(bridge);
   logEvent('bridge', bridge);
-  addFeedItem({ type: 'bridge', head: bridge.type, text: `${shortLabel(source)} ↔ ${shortLabel(target)}`, detail: rationale });
+  addFeedItem({ type: 'bridge', head: bridge.type, text: `${shortLabel(source)} ↔ ${shortLabel(target)}`, detail: rationale, ref: bridge.id });
   scheduleSave();
   return bridge;
 }
@@ -245,7 +294,7 @@ export function addHeuristicHit(hit) {
   const h = { id: rid('h'), ts: new Date().toISOString(), ...hit };
   state.heuristicHits.push(h);
   logEvent('heuristic', h);
-  addFeedItem({ type: 'heuristic', text: `Heuristic · ${h.name}`, detail: h.why });
+  addFeedItem({ type: 'heuristic', text: `Heuristic · ${h.name}`, detail: h.why, ref: h.noteId });
   scheduleSave();
   return h;
 }
@@ -254,7 +303,7 @@ export function addFactCheck(fc) {
   const f = { id: rid('f'), ts: new Date().toISOString(), ...fc };
   state.factChecks.push(f);
   logEvent('factcheck', f);
-  addFeedItem({ type: 'factcheck', head: f.verdict, text: trunc(f.statement, 80), detail: trunc(f.detail, 130) });
+  addFeedItem({ type: 'factcheck', head: f.verdict, text: f.statement, detail: f.detail, ref: f.noteId });
   scheduleSave();
   return f;
 }
@@ -263,7 +312,7 @@ export function addBoundaryCondition(bc) {
   const b = { id: rid('bc'), ts: new Date().toISOString(), ...bc };
   state.boundaryConditions.push(b);
   logEvent('boundary', b);
-  addFeedItem({ type: 'boundary', text: `Boundary · ${trunc(b.text, 64)}` });
+  addFeedItem({ type: 'boundary', text: `Boundary · ${b.text}`, ref: b.noteId });
   scheduleSave();
   return b;
 }
@@ -272,9 +321,24 @@ export function addGeneralisation(g) {
   const x = { id: rid('g'), ts: new Date().toISOString(), ...g };
   state.generalisations.push(x);
   logEvent('generalisation', x);
-  addFeedItem({ type: 'principle', text: `Principle · ${trunc(x.principle, 64)}` });
+  addFeedItem({ type: 'principle', text: `Principle · ${x.principle}`, ref: x.noteId });
   scheduleSave();
   return x;
+}
+
+// Attach an AI elaboration to whichever entity the id refers to (/saymore).
+export function setElaboration(id, text) {
+  const t = (text || '').trim();
+  if (!t) return null;
+  const note = state.notes.find((n) => n.id === id);
+  if (note) { note.elaboration = t; addFeedItem({ type: 'elaborate', text: t, ref: id }); scheduleSave(); return note; }
+  const theme = state.themes.find((x) => x.id === id);
+  if (theme) { theme.summary = t; addFeedItem({ type: 'elaborate', text: `${theme.label}: ${t}`, ref: id }); scheduleSave(); return theme; }
+  const frame = state.frames.find((x) => x.id === id);
+  if (frame) { frame.gist = t; addFeedItem({ type: 'elaborate', text: `${frame.name}: ${t}`, ref: id }); scheduleSave(); return frame; }
+  const bridge = state.bridges.find((x) => x.id === id);
+  if (bridge) { bridge.rationale = t; addFeedItem({ type: 'elaborate', text: t, ref: id }); scheduleSave(); return bridge; }
+  return null;
 }
 
 export function setPaused(p) {

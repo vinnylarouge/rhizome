@@ -51,7 +51,7 @@ async function triage(note) {
   const out = await chatJSON({
     tier: 'fast',
     system: sys,
-    user: `Raw note: "${note.text}"${existing}\nReuse an existing theme label verbatim if it fits.`,
+    user: `Raw note: "${note.text}"${existing}\nReuse an existing theme label verbatim ONLY if this note is about the SAME specific topic; otherwise give a new, more precise label. Favour precision over reuse — distinct topics get distinct themes.`,
     label: 'triage',
     maxTokens: 260,
   });
@@ -160,6 +160,34 @@ async function factCheck(note) {
   }
 }
 
+// ---- 5. Abduction: surface latent values & open questions ------------------
+// From a painpoint/claim/anecdote, infer the value implicitly at stake and an open
+// question it raises. These become *derived* (ghosted) nodes on the VALUES / OPEN
+// QUESTIONS anchors, linked back by an "abduced" edge — never confused with what
+// a participant actually said.
+const ABDUCE_KINDS = new Set(['painpoint', 'claim', 'anecdote']);
+async function abduct(note) {
+  const sys =
+    'You read one note from a strategy discussion and abductively surface what is IMPLICIT ' +
+    'but unstated. Infer (a) the underlying VALUE at stake — what participants implicitly care ' +
+    'about, phrased as a short principle; and (b) an OPEN QUESTION the note raises that the group ' +
+    'should address. Include each ONLY if it is clearly and non-trivially implied — otherwise use ' +
+    'an empty string. Do not restate the note; surface what is beneath or ahead of it. Be conservative.\n' +
+    'Reply ONLY with JSON: {"value":"short principle or empty","question":"a question or empty"}';
+  const out = await chatJSON({ tier: 'fast', system: sys, user: dtext(note), label: 'abduct', maxTokens: 200 });
+  if (!out) return;
+  if (out.value && out.value.trim()) {
+    const dn = store.addDerivedNote({ text: out.value.trim(), kind: 'value', parent: 'values', derivedFrom: note.id });
+    store.attachNoteToTheme(dn.id, 'anchor-values');
+    store.addBridge({ source: note.id, target: dn.id, type: 'abduced', rationale: 'implied value' });
+  }
+  if (out.question && out.question.trim()) {
+    const dn = store.addDerivedNote({ text: out.question.trim(), kind: 'question', parent: 'questions', derivedFrom: note.id });
+    store.attachNoteToTheme(dn.id, 'anchor-questions');
+    store.addBridge({ source: note.id, target: dn.id, type: 'abduced', rationale: 'question raised' });
+  }
+}
+
 // ---- Orchestrator ----------------------------------------------------------
 export async function processNote(noteId, emit) {
   const state = store.get();
@@ -173,7 +201,7 @@ export async function processNote(noteId, emit) {
     const cleanText = (t.clean && t.clean.trim()) || note.text;
     store.patchNote(noteId, { kind: t.kind || note.kind, clean: cleanText, parent: deriveParent(t) });
     if (cleanText.replace(/\s+/g, ' ').toLowerCase() !== note.text.replace(/\s+/g, ' ').toLowerCase())
-      store.addFeedItem({ type: 'refine', text: cleanText });
+      store.addFeedItem({ type: 'refine', text: cleanText, ref: note.id });
     for (const a of t.anchors || []) {
       if (ANCHOR_BY_NAME[a]) store.attachNoteToTheme(noteId, ANCHOR_BY_NAME[a]);
     }
@@ -191,6 +219,7 @@ export async function processNote(noteId, emit) {
   const jobs = [findBridges(note).then(emit)];
   if (kind === 'question' || kind === 'painpoint') jobs.push(matchHeuristic(note).then(emit));
   if (kind === 'claim' || kind === 'anecdote') jobs.push(factCheck(note).then(emit));
+  if (ABDUCE_KINDS.has(kind)) jobs.push(abduct(note).then(emit));
   await Promise.allSettled(jobs);
   emit();
 }
@@ -228,4 +257,82 @@ export async function mergeThemesPass(emit) {
     }
   }
   if (merged) emit();
+}
+
+// ---- Abstraction pass (/abstract) -----------------------------------------
+// Surfaces the recurring conceptual abstractions — metaphors and frames — beneath
+// the discussion, as frame nodes spanning the themes that instantiate them.
+export async function abstractPass(emit) {
+  const state = store.get();
+  const themes = state.themes.filter((t) => t.kind !== 'anchor');
+  const notes = state.notes.filter((n) => !n.derived).slice(-40).map((n) => `- ${dtext(n)}`);
+  if (notes.length < 3) return;
+  const themeList = themes.map((t) => `${t.id} :: ${t.label}`).join('\n') || '(none)';
+  const sys =
+    'You analyse a strategy discussion and identify the recurring ABSTRACTIONS beneath it: ' +
+    'conceptual METAPHORS (e.g. "AI as an arms race", "trust as currency", "data as territory") and ' +
+    'conceptual FRAMES — the implicit model in play (e.g. "zero-sum competition", "principal-agent", ' +
+    '"commons governance"). Identify 2-5 that genuinely recur across multiple points; be insightful ' +
+    'but not fanciful. For each, name which existing themes (by id) it spans.\n' +
+    'Reply ONLY with JSON: {"abstractions":[{"name":"short name","kind":"metaphor"|"frame",' +
+    '"gist":"one sentence on how it shows up here","themeIds":["id"]}]}';
+  const user = `Themes (id :: label):\n${themeList}\n\nRecent points:\n${notes.join('\n')}`;
+  const out = await chatJSON({ tier: 'strong', system: sys, user, label: 'abstract', maxTokens: 700, timeoutMs: 45000 });
+  if (!out || !Array.isArray(out.abstractions)) return;
+  const valid = new Set(themes.map((t) => t.id));
+  for (const a of out.abstractions.slice(0, 6)) {
+    if (!a || !a.name) continue;
+    const tids = (Array.isArray(a.themeIds) ? a.themeIds : []).filter((id) => valid.has(id));
+    store.addFrame({ name: a.name, frameKind: a.kind, gist: a.gist, themeIds: tids });
+  }
+  emit();
+}
+
+// ---- Elaboration (/saymore) -----------------------------------------------
+// Elaborate one selected element (note / theme / frame / bridge) in place.
+export async function elaborate(id, emit) {
+  const s = store.get();
+  const note = s.notes.find((n) => n.id === id);
+  const theme = s.themes.find((t) => t.id === id);
+  const frame = s.frames.find((f) => f.id === id);
+  const bridge = s.bridges.find((b) => b.id === id);
+  let subject, kind;
+  if (note) { subject = dtext(note); kind = 'point'; }
+  else if (theme) { subject = theme.label + (theme.summary ? ': ' + theme.summary : ''); kind = 'theme'; }
+  else if (frame) { subject = frame.name + (frame.gist ? ': ' + frame.gist : ''); kind = 'abstraction'; }
+  else if (bridge) { subject = bridge.rationale || 'a connection'; kind = 'connection'; }
+  else return;
+  const sys =
+    'You elaborate one element of a live AI-strategy discussion in 1-2 substantive sentences: add the ' +
+    'most useful context, implication, or nuance a facilitator would want — concrete and rigorous, ' +
+    'invent no facts or citations, and do not merely restate it.\n' +
+    'Reply ONLY with JSON: {"elaboration":"1-2 sentences"}';
+  const out = await chatJSON({ tier: 'strong', system: sys, user: `The ${kind}: "${subject}"`, label: 'saymore', maxTokens: 300 });
+  if (out && out.elaboration) { store.setElaboration(id, out.elaboration); emit(); }
+}
+
+// ---- Chunking (/chunk) -----------------------------------------------------
+// Break long anecdotal notes into atomic propositions / data points (derived child
+// nodes linked back to the source) that can be connected individually.
+export async function chunkPass(emit) {
+  const s = store.get();
+  const longNotes = s.notes.filter((n) => !n.derived && !n.chunked && dtext(n).length > 140);
+  if (!longNotes.length) return;
+  for (const note of longNotes.slice(0, 8)) {
+    const sys =
+      'Break a long discussion note into 2-5 atomic propositions or data points — each a single, ' +
+      'short, self-contained factual or evaluative statement that could stand and be connected on its ' +
+      'own. Preserve meaning; invent nothing; do not editorialise.\n' +
+      'Reply ONLY with JSON: {"props":["...","..."]}';
+    const out = await chatJSON({ tier: 'fast', system: sys, user: dtext(note), label: 'chunk', maxTokens: 400 });
+    if (!out || !Array.isArray(out.props) || out.props.length < 2) { store.patchNote(note.id, { chunked: true }); continue; }
+    for (const p of out.props.slice(0, 5)) {
+      if (!p || !p.trim()) continue;
+      const dn = store.addDerivedNote({ text: p.trim(), kind: note.kind, parent: note.parent, derivedFrom: note.id });
+      for (const tid of note.themeIds) store.attachNoteToTheme(dn.id, tid);
+      store.addBridge({ source: dn.id, target: note.id, type: 'instance-of', rationale: 'proposition drawn from a longer point' });
+    }
+    store.patchNote(note.id, { chunked: true });
+    emit();
+  }
 }

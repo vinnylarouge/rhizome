@@ -38,7 +38,7 @@ for (const t of [...anchors, ...emergent]) {
   if (t.summary) p(`_${t.summary}_\n`);
   for (const nid of t.noteIds) {
     const n = noteById.get(nid);
-    if (n) p(`- ${trim(dt(n), 300)}${attrib(n)}  \`[${n.kind}]\``);
+    if (n) p(`- ${trim(dt(n), 300)}${n.derived ? ' _(AI-inferred)_' : ''}  \`[${n.kind}]\``);
   }
   p();
 }

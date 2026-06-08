@@ -10,7 +10,7 @@ import { WebSocketServer } from 'ws';
 
 import * as store from './store.js';
 import { loadHeuristics } from './heuristics.js';
-import { processNote, mergeThemesPass } from './workers.js';
+import { processNote, mergeThemesPass, abstractPass, elaborate, chunkPass } from './workers.js';
 import { MODELS, selfTest } from './llm.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -44,6 +44,20 @@ function broadcast() {
     if (c.readyState === 1) c.send(msg);
   }
 }
+// Push a transient status line (for chunky commands) so the UI can show progress.
+function broadcastStatus(text) {
+  if (!wss) return;
+  const msg = JSON.stringify({ type: 'status', text: text || '', busy: !!text });
+  for (const c of wss.clients) if (c.readyState === 1) c.send(msg);
+}
+// Which graph nodes a worker is currently operating on (for the drone overlay).
+const activeIds = new Set();
+function broadcastActivity() {
+  if (!wss) return;
+  const msg = JSON.stringify({ type: 'activity', ids: [...activeIds] });
+  for (const c of wss.clients) if (c.readyState === 1) c.send(msg);
+}
+function setActive(id, on) { if (on) activeIds.add(id); else activeIds.delete(id); broadcastActivity(); }
 
 // --- work queue (sequential — bounds cost, keeps ordering sane, and lets the
 //     periodic theme-merge run safely between notes rather than during one) ----
@@ -73,7 +87,8 @@ setInterval(() => {
   if (store.get().paused || mergePending) return;
   mergePending = true;
   enqueue(async () => {
-    try { await mergeThemesPass(broadcast); } finally { mergePending = false; }
+    broadcastStatus('Consolidating themes…');
+    try { await mergeThemesPass(broadcast); } finally { broadcastStatus(''); mergePending = false; }
   });
 }, 60000);
 
@@ -122,7 +137,10 @@ const server = http.createServer(async (req, res) => {
     if (!body.text || !body.text.trim()) return json(res, 400, { error: 'empty' });
     const note = store.addNote({ text: body.text });
     broadcast();                                      // node appears instantly, no LLM in the path
-    enqueue(() => processNote(note.id, broadcast));   // enrichment happens async
+    enqueue(async () => {                              // enrichment happens async (drone on the node)
+      setActive(note.id, true);
+      try { await processNote(note.id, broadcast); } finally { setActive(note.id, false); }
+    });
     return json(res, 200, { note });
   }
   if (req.method === 'POST' && url === '/api/note/delete') {
@@ -132,7 +150,23 @@ const server = http.createServer(async (req, res) => {
     return json(res, 200, { ok: true });
   }
   if (req.method === 'POST' && url === '/api/merge') {
-    enqueue(() => mergeThemesPass(broadcast)); // consolidate themes on demand
+    enqueue(async () => { broadcastStatus('Consolidating themes…'); try { await mergeThemesPass(broadcast); } finally { broadcastStatus(''); } });
+    return json(res, 200, { ok: true });
+  }
+  if (req.method === 'POST' && url === '/api/abstract') {
+    enqueue(async () => { broadcastStatus('Finding abstractions…'); try { await abstractPass(broadcast); } finally { broadcastStatus(''); } });
+    return json(res, 200, { ok: true });
+  }
+  if (req.method === 'POST' && url === '/api/saymore') {
+    const body = await readBody(req);
+    if (body.id) enqueue(async () => {
+      setActive(body.id, true); broadcastStatus('Elaborating…');
+      try { await elaborate(body.id, broadcast); } finally { broadcastStatus(''); setActive(body.id, false); }
+    });
+    return json(res, 200, { ok: true });
+  }
+  if (req.method === 'POST' && url === '/api/chunk') {
+    enqueue(async () => { broadcastStatus('Chunking long points…'); try { await chunkPass(broadcast); } finally { broadcastStatus(''); } });
     return json(res, 200, { ok: true });
   }
   if (req.method === 'POST' && url === '/api/pause') {

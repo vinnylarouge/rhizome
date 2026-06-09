@@ -10,7 +10,7 @@ import { WebSocketServer } from 'ws';
 
 import * as store from './store.js';
 import { loadHeuristics } from './heuristics.js';
-import { processNote, mergeThemesPass, abstractPass, elaborate, chunkPass, abductPass } from './workers.js';
+import { processNote, mergeThemesPass, mergeFramesPass, abstractPass, elaborate, chunkPass, abductPass } from './workers.js';
 import { compilePaper } from './paper/compile.js';
 import { MODELS, selfTest } from './llm.js';
 
@@ -164,7 +164,12 @@ const server = http.createServer(async (req, res) => {
     return json(res, 200, { ok: true });
   }
   if (req.method === 'POST' && url === '/api/merge') {
-    enqueue(async () => { broadcastStatus('Consolidating themes…'); try { await mergeThemesPass(broadcast); } finally { broadcastStatus(''); } });
+    enqueue(async () => {
+      broadcastStatus('Consolidating themes…');
+      try { await mergeThemesPass(broadcast); } catch (e) { console.error('[merge themes]', e.message); }
+      broadcastStatus('Consolidating abstractions…');
+      try { await mergeFramesPass(broadcast); } finally { broadcastStatus(''); }
+    });
     return json(res, 200, { ok: true });
   }
   if (req.method === 'POST' && url === '/api/abstract') {

@@ -272,6 +272,33 @@ export async function mergeThemesPass(emit) {
   if (merged) emit();
 }
 
+// Consolidate near-duplicate abstractions (frames/metaphors). Same shape as the
+// theme merge; runs as part of /merge so the magenta layer stays legible.
+export async function mergeFramesPass(emit) {
+  const frames = store.get().frames;
+  if (frames.length < 3) return;
+  const list = frames.map((f) => `${f.id} :: [${f.frameKind}] ${f.name}`).join('\n');
+  const sys =
+    'You consolidate a list of conceptual abstractions (metaphors and frames) from a discussion. ' +
+    'Identify groups that name the SAME underlying idea — synonyms or rephrasings (e.g. ' +
+    '"Trust as social license" / "Trust as a license to operate"). Be conservative: only merge ones ' +
+    'that clearly mean the same thing; never merge distinct ideas. For each group pick the clearest ' +
+    'canonical name.\nReply ONLY with JSON: {"merges":[{"canonical":"Name","ids":["id1","id2"]}]}. ' +
+    'Empty list if nothing should merge.';
+  const out = await chatJSON({ tier: 'fast', system: sys, user: `Abstractions (id :: [kind] name):\n${list}`, label: 'merge-frames', maxTokens: 400 });
+  if (!out || !Array.isArray(out.merges)) return;
+  const valid = new Set(frames.map((f) => f.id));
+  let merged = 0;
+  for (const m of out.merges) {
+    if (!m || !Array.isArray(m.ids)) continue;
+    const ids = m.ids.filter((id) => valid.has(id));
+    if (ids.length < 2) continue;
+    const res = store.mergeFrames(ids, m.canonical);
+    if (res) { merged++; ids.forEach((id) => valid.delete(id)); valid.add(res.survivor.id); }
+  }
+  if (merged) emit();
+}
+
 // ---- Abstraction pass (/abstract) -----------------------------------------
 // Surfaces the recurring conceptual abstractions — metaphors and frames — beneath
 // the discussion, as frame nodes spanning the themes that instantiate them.

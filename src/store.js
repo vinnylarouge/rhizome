@@ -140,6 +140,28 @@ export function addFrame({ name, frameKind, gist, themeIds }) {
   return f;
 }
 
+// Merge several abstractions (frames/metaphors) into one. Survivor = the one
+// spanning the most themes; their themeIds union and the richer gist are kept.
+export function mergeFrames(ids, canonicalName) {
+  const idset = new Set(ids);
+  const group = state.frames.filter((f) => idset.has(f.id));
+  if (group.length < 2) return null;
+  group.sort((a, b) => b.themeIds.length - a.themeIds.length);
+  const survivor = group[0];
+  if (canonicalName && canonicalName.trim()) survivor.name = canonicalName.trim();
+  const losers = group.slice(1);
+  const mergedNames = losers.map((f) => f.name);
+  for (const loser of losers) {
+    for (const tid of loser.themeIds) if (!survivor.themeIds.includes(tid)) survivor.themeIds.push(tid);
+    if (loser.gist && loser.gist.length > survivor.gist.length) survivor.gist = loser.gist;
+    state.frames = state.frames.filter((f) => f.id !== loser.id);
+  }
+  logEvent('frame-merge', { into: survivor.id, name: survivor.name, merged: mergedNames });
+  addFeedItem({ type: 'merge', head: 'merged', text: `${mergedNames.join(', ')} → ${survivor.name}`, ref: survivor.id });
+  scheduleSave();
+  return { survivor, mergedNames };
+}
+
 // --- Mutations. Each returns the created/changed entity and triggers save + log. ---
 
 export function addNote({ text }) {

@@ -18,6 +18,7 @@
       if (msg.type === 'state') applyState(msg.state);
       else if (msg.type === 'status') showStatus(msg.text, msg.busy);
       else if (msg.type === 'activity') LoomGraph.setActivity(msg.ids);
+      else if (msg.type === 'paper') onPaper(msg);
     };
   }
   function setConn(up) {
@@ -36,7 +37,7 @@
   }
 
   // ---- left rail: live activity feed of AI-generated structure ----
-  const FEED_ICON = { theme: '✦', bridge: '↔', refine: '✎', heuristic: '◆', factcheck: '✓', boundary: '⟂', principle: '↳', merge: '∪', abstract: '❖', elaborate: '＋' };
+  const FEED_ICON = { theme: '✦', bridge: '↔', refine: '✎', heuristic: '◆', factcheck: '✓', boundary: '⟂', principle: '↳', merge: '∪', abstract: '❖', elaborate: '＋', paper: '⎙' };
   let lastFeedSig = '';
   let selectedFeedId = null;   // selected feed line (for expand + /saymore target)
   let selectedRef = null;      // the graph element it points to
@@ -52,12 +53,15 @@
       const slug = it.head ? it.head.toLowerCase().replace(/[^a-z0-9]+/g, '-') : '';
       const head = it.head ? `<span class="fi-head fh-${slug}">${esc(it.head)}</span>` : '';
       const sel = it.id === selectedFeedId ? ' selected' : '';
+      const detailHtml = it.type === 'paper' && it.detail
+        ? `<div class="fi-detail"><a class="fi-link" href="${esc(it.detail)}" target="_blank" rel="noopener">Open PDF ↗</a></div>`
+        : it.detail ? `<div class="fi-detail">${esc(it.detail)}</div>` : '';
       return `
       <div class="feed-item fi-${it.type}${sel}" data-id="${it.id}" data-ref="${it.ref || ''}">
         <span class="fi-icon">${FEED_ICON[it.type] || '·'}</span>
         <div class="fi-main">
           <div class="fi-text">${head}${esc(it.text)}</div>
-          ${it.detail ? `<div class="fi-detail">${esc(it.detail)}</div>` : ''}
+          ${detailHtml}
         </div>
       </div>`;
     }).join('');
@@ -109,6 +113,7 @@
       case '/abstract': flashCmd('Finding abstractions…'); post('/api/abstract'); break;
       case '/abduct': flashCmd('Surfacing values & questions…'); post('/api/abduct'); break;
       case '/chunk': flashCmd('Chunking long points…'); post('/api/chunk'); break;
+      case '/compile': flashCmd('Compiling the report — this can take a few minutes…'); post('/api/compile'); break;
       case '/organise': case '/organize': flashCmd('Organising…'); LoomGraph.organise(); break;
       case '/auto': toggleAuto(); break;
       case '/saymore':
@@ -135,6 +140,16 @@
     autoIdx++;
     if (step === 'organise') LoomGraph.organise();
     else fetch('/api/' + step, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {});
+  }
+
+  // /compile result: open the PDF (best-effort; the feed also carries the link).
+  function onPaper(msg) {
+    if (msg.ok && msg.url) {
+      flashCmd('Report ready — opening (also linked in the feed)');
+      try { window.open(msg.url, '_blank', 'noopener'); } catch { /* popup blocked — feed link remains */ }
+    } else {
+      flashCmd('Report compile failed — check the terminal');
+    }
   }
 
   // brief command confirmation in the placeholder

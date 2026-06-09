@@ -11,6 +11,7 @@ import { WebSocketServer } from 'ws';
 import * as store from './store.js';
 import { loadHeuristics } from './heuristics.js';
 import { processNote, mergeThemesPass, abstractPass, elaborate, chunkPass, abductPass } from './workers.js';
+import { compilePaper } from './paper/compile.js';
 import { MODELS, selfTest } from './llm.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -48,6 +49,12 @@ function broadcast() {
 function broadcastStatus(text) {
   if (!wss) return;
   const msg = JSON.stringify({ type: 'status', text: text || '', busy: !!text });
+  for (const c of wss.clients) if (c.readyState === 1) c.send(msg);
+}
+// Notify clients that a compiled paper is ready (or failed) with a download link.
+function broadcastPaper(url, ok) {
+  if (!wss) return;
+  const msg = JSON.stringify({ type: 'paper', url, ok: !!ok });
   for (const c of wss.clients) if (c.readyState === 1) c.send(msg);
 }
 // Which graph nodes a worker is currently operating on (for the drone overlay).
@@ -124,6 +131,21 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET' && url === '/api/health')
     return json(res, 200, { ok: true, models: MODELS, paused: store.get().paused, notes: store.get().notes.length });
 
+  // Serve a compiled paper artifact (PDF / .tex / receipts.md) from data/, sandboxed.
+  if (req.method === 'GET' && url === '/api/paper') {
+    const file = (new URL(req.url, 'http://x').searchParams.get('file') || '').trim();
+    const dataDir = path.join(ROOT, 'data');
+    const full = path.join(dataDir, path.normalize(file));
+    if (!file || !full.startsWith(dataDir + path.sep)) { res.writeHead(403); return res.end('forbidden'); }
+    const ext = path.extname(full);
+    const ctype = ext === '.pdf' ? 'application/pdf' : ext === '.md' ? 'text/markdown; charset=utf-8' : ext === '.tex' ? 'text/plain; charset=utf-8' : 'application/octet-stream';
+    return fs.readFile(full, (err, buf) => {
+      if (err) { res.writeHead(404); return res.end('not found'); }
+      res.writeHead(200, { 'Content-Type': ctype, 'Cache-Control': 'no-store' });
+      res.end(buf);
+    });
+  }
+
   if (req.method === 'POST' && url === '/api/note') {
     const body = await readBody(req);
     if (!body.text || !body.text.trim()) return json(res, 400, { error: 'empty' });
@@ -165,6 +187,33 @@ const server = http.createServer(async (req, res) => {
     enqueue(async () => { broadcastStatus('Surfacing values & questions…'); try { await abductPass(broadcast); } finally { broadcastStatus(''); } });
     return json(res, 200, { ok: true });
   }
+  // /compile — turn the session into a cited LaTeX roundtable report (post-session,
+  // long-running). Enqueued like other passes so it never races note enrichment.
+  if (req.method === 'POST' && url === '/api/compile') {
+    enqueue(async () => {
+      broadcastStatus('Compiling roundtable report…');
+      try {
+        const out = await compilePaper(store.get(), { outDir: path.join(ROOT, 'data'), onProgress: (m) => broadcastStatus(m) });
+        if (out.ok) {
+          const rel = `${out.stem}/${out.stem}.pdf`;
+          const link = '/api/paper?file=' + encodeURIComponent(rel);
+          store.addFeedItem({ type: 'paper', head: 'report', text: `Report compiled — ${out.counts.verifiedCitations} verified citations across ${out.counts.notes} notes`, detail: link });
+          broadcastPaper(link, true);
+        } else {
+          store.addFeedItem({ type: 'paper', head: 'failed', text: 'Report compile failed (see terminal)', detail: '' });
+          console.error('[compile] LaTeX failed:\n' + (out.log || '').slice(-3000));
+          broadcastPaper('', false);
+        }
+      } catch (e) {
+        console.error('[compile] error:', e.stack || e.message);
+        broadcastStatus('Compile error: ' + e.message);
+      } finally {
+        broadcast();
+        setTimeout(() => broadcastStatus(''), 4000);
+      }
+    });
+    return json(res, 200, { ok: true });
+  }
   if (req.method === 'POST' && url === '/api/pause') {
     const body = await readBody(req);
     const p = store.setPaused(body.paused);
@@ -190,7 +239,7 @@ wss.on('connection', (ws) => {
 
 server.listen(PORT, async () => {
   console.log(`\n  ✦ Loom running →  http://localhost:${PORT}`);
-  console.log(`    models: fast=${MODELS.FAST} (effort ${MODELS.FAST_EFFORT}), strong=${MODELS.STRONG} (effort ${MODELS.STRONG_EFFORT})`);
+  console.log(`    models: fast=${MODELS.FAST} (effort ${MODELS.FAST_EFFORT}), strong=${MODELS.STRONG} (effort ${MODELS.STRONG_EFFORT}), paper=${MODELS.PAPER} (/compile)`);
   process.stdout.write('    self-test (OpenAI reachability): ');
   const ok = await selfTest();
   console.log(ok ? 'PASS ✓' : 'FAIL ✗  (check OPENAI_API_KEY / network — note-taking still works, enrichment will not)');

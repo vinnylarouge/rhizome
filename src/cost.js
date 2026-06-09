@@ -14,14 +14,17 @@ const RATES = {
   'gpt-5.4-mini': { in: 0.25, out: 2.0 },
   'gpt-5.4': { in: 1.25, out: 10.0 },
   'gpt-5.4-nano': { in: 0.05, out: 0.4 },
+  'gpt-5.5': { in: 1.5, out: 12.0 },
+  'gpt-5.5-pro': { in: 15.0, out: 120.0 },
   default: { in: 1.0, out: 5.0 },
 };
 
 export function recordUsage({ model, label, usage }) {
   if (!usage) return;
   const r = RATES[model] || RATES.default;
-  const pin = usage.prompt_tokens || 0;
-  const pout = usage.completion_tokens || 0;
+  // Accept both chat-completions (prompt/completion) and Responses (input/output) shapes.
+  const pin = usage.prompt_tokens ?? usage.input_tokens ?? 0;
+  const pout = usage.completion_tokens ?? usage.output_tokens ?? 0;
   const usd = (pin * r.in + pout * r.out) / 1e6;
   const row = {
     t: new Date().toISOString(),

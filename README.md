@@ -57,7 +57,28 @@ npm run export     # → data/whitepaper-<timestamp>.md  (structured scaffold)
 npm run cost       # per-worker token + estimated $ summary
 ```
 
-Turning the scaffold into polished prose is a later, non-live step.
+`npm run export` is the quick Markdown scaffold. For the polished, cited souvenir,
+use **`/compile`** (see below).
+
+### `/compile` — the cited LaTeX report
+
+Type `/compile` in the board (a post-session, non-live step) to generate a Chatham
+House-style roundtable report as a typeset PDF. The pipeline:
+
+1. **Linearises** the graph into an ordered report (grammar: `docs/paper-grammar.md`).
+2. **Cites** empirical claims and heuristic provenance with *real, verified* sources:
+   GPT-5.5 web-searches, then a strict verifier must quote the supporting passage or
+   the claim is flagged `[unsupported]` — nothing is fabricated. Every decision is
+   logged to `data/paper-<ts>/receipts.md`.
+3. **Writes** the prose against an anti-"AI-tell" style guide (`docs/style-guide.md`)
+   plus a final smell-check pass.
+4. **Compiles** with `latexmk` (biblatex / biber / hyperref) to
+   `data/paper-<ts>/paper-<ts>.pdf`, citation URLs clickable. A download link appears
+   in the feed.
+
+Uses `LOOM_PAPER_MODEL` (default `gpt-5.5`); the live workers stay on `gpt-5.4`.
+Needs a LaTeX toolchain (`latexmk`, `biber`) and web access for the citations; if
+web search is unavailable it proceeds with no citations rather than inventing them.
 
 ## Morning-of checklist
 
@@ -83,6 +104,7 @@ Nothing is ever deleted — reset renames with a timestamp.
 OPENAI_API_KEY=…              # real OpenAI platform key (from the blueprint project)
 LOOM_FAST_MODEL=gpt-5.4-mini  # triage / theme / bridge / heuristic   (reasoning_effort none)
 LOOM_STRONG_MODEL=gpt-5.4     # fact-check / boundary / generalisation (reasoning_effort low)
+LOOM_PAPER_MODEL=gpt-5.5      # /compile: citations (web_search) + prose      (reasoning_effort low)
 PORT=7777
 ```
 
@@ -100,8 +122,12 @@ PORT=7777
 
 ```
 src/      server.js · store.js · workers.js · heuristics.js · llm.js · cost.js
+  paper/  plan.js · cite.js · style.js · prose.js · latex.js · compile.js   (the /compile pipeline)
 public/   index.html · style.css · graph.js (D3) · app.js · vendor/d3.v7.min.js
 scripts/  export.js · cost.js · reset.js
+templates/  report.tex.js          (the LaTeX skeleton /compile fills)
+docs/     paper-grammar.md · style-guide.md · choicepoints.md
+fixtures/ sample-session.json      (a rich session for dry-running /compile)
 heuristics/  50 heuristic docs (vendored from the heuristics project)
-data/     session.json · events.jsonl · costs.jsonl   (gitignored)
+data/     session.json · events.jsonl · costs.jsonl · paper-<ts>/   (gitignored)
 ```

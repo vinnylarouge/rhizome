@@ -1,0 +1,65 @@
+{
+  "session": {
+    "id": "loom-sample",
+    "title": "Trust, Accountability and Pace: Fielding AI in High-Stakes Operations",
+    "startedAt": "2026-06-09T09:00:00.000Z",
+    "participants": "executives, university leaders, and senior military officers"
+  },
+  "paused": false,
+  "notes": [
+    { "id": "n1", "text": "ai should augment human judgment not replace accountability", "clean": "AI should augment human judgment, not replace accountability.", "parent": "values", "kind": "value", "ts": "2026-06-09T09:05:00.000Z", "themeIds": ["anchor-values", "t1"] },
+    { "id": "n2", "text": "we bought an ai tool but ppl dont trust outputs so it sits unused", "clean": "We bought an AI tool, but people do not trust the outputs, so it sits unused.", "parent": "painpoints", "kind": "painpoint", "ts": "2026-06-09T09:07:00.000Z", "themeIds": ["anchor-painpoints", "t2"] },
+    { "id": "n3", "text": "last exercise ai logistics planner cut mission planning time ~80%", "clean": "In the last exercise, an AI logistics planner cut mission-planning time by about 80 percent.", "parent": "painpoints", "kind": "claim", "ts": "2026-06-09T09:09:00.000Z", "themeIds": ["t3"] },
+    { "id": "n4", "text": "how do we measure trust in an ai system before fielding it", "clean": "How do we measure trust in an AI system before we field it operationally?", "parent": "questions", "kind": "question", "ts": "2026-06-09T09:11:00.000Z", "themeIds": ["anchor-questions", "t2"] },
+    { "id": "n5", "text": "decisions that take a human life must have a human who can be held responsible", "clean": "Decisions that take a human life must always have a human who can be held responsible.", "parent": "values", "kind": "value", "ts": "2026-06-09T09:13:00.000Z", "themeIds": ["anchor-values", "t1"] },
+    { "id": "n6", "text": "procurement so slow the model is two generations old by the time its fielded", "clean": "Procurement timelines are so long that the model is two generations old by the time it is fielded.", "parent": "painpoints", "kind": "painpoint", "ts": "2026-06-09T09:15:00.000Z", "themeIds": ["anchor-painpoints", "t4"] },
+    { "id": "n7", "text": "uni pilot used llm to triage mental health referrals worked until it confidently misranked a high risk case", "clean": "A university pilot used an LLM to triage student mental-health referrals; it worked until it confidently mis-ranked a high-risk case.", "parent": "painpoints", "kind": "anecdote", "ts": "2026-06-09T09:18:00.000Z", "themeIds": ["t2"] },
+    { "id": "n8", "text": "adversarial examples flip a classifier with perturbations invisible to humans", "clean": "Adversarial examples can flip a classifier's output with perturbations invisible to humans.", "parent": "painpoints", "kind": "claim", "ts": "2026-06-09T09:21:00.000Z", "themeIds": ["t2"] },
+    { "id": "n9", "text": "speed is a value too being slow can cost lives", "clean": "Speed is a value too; being slow can cost lives.", "parent": "values", "kind": "value", "ts": "2026-06-09T09:24:00.000Z", "themeIds": ["anchor-values", "t3"] },
+    { "id": "n10", "text": "who is liable when an ai recommendation is followed and turns out catastrophically wrong", "clean": "Who is liable when an AI recommendation is followed and turns out catastrophically wrong?", "parent": "questions", "kind": "question", "ts": "2026-06-09T09:27:00.000Z", "themeIds": ["anchor-questions", "t1"] },
+    { "id": "n11", "text": "vendors wont disclose training data so we cant assess bias or provenance", "clean": "Vendors will not disclose training data, so we cannot assess bias or provenance.", "parent": "painpoints", "kind": "painpoint", "ts": "2026-06-09T09:30:00.000Z", "themeIds": ["anchor-painpoints", "t2", "t4"] },
+    { "id": "n12", "text": "red team week model passed our benchmark but failed badly on out of distribution inputs from a partner nations data", "clean": "In a red-team week, the model passed our benchmark but failed badly on out-of-distribution inputs from a partner nation's data.", "parent": "painpoints", "kind": "anecdote", "ts": "2026-06-09T09:33:00.000Z", "themeIds": ["t3"] },
+    { "id": "n13", "text": "transparency to the operator matters more than transparency to the public for fielded systems", "clean": "Transparency to the operator matters more than transparency to the public for fielded systems.", "parent": "values", "kind": "value", "ts": "2026-06-09T09:36:00.000Z", "themeIds": ["anchor-values", "t2"] },
+    { "id": "n14", "text": "what is the right reversion plan when the ai is unavailable mid operation", "clean": "What is the right reversion plan when the AI is unavailable mid-operation?", "parent": "questions", "kind": "question", "ts": "2026-06-09T09:39:00.000Z", "themeIds": ["anchor-questions", "t3"] }
+  ],
+  "themes": [
+    { "id": "anchor-values", "label": "VALUES", "kind": "anchor", "summary": "", "noteIds": ["n1", "n5", "n9", "n13"] },
+    { "id": "anchor-painpoints", "label": "PAINPOINTS", "kind": "anchor", "summary": "", "noteIds": ["n2", "n6", "n11"] },
+    { "id": "anchor-questions", "label": "OPEN QUESTIONS", "kind": "anchor", "summary": "", "noteIds": ["n4", "n10", "n14"] },
+    { "id": "t1", "label": "Human Judgment and Accountability", "kind": "emergent", "summary": "Where responsibility sits when AI advises or acts.", "noteIds": ["n1", "n5", "n10"] },
+    { "id": "t2", "label": "Trust, Adoption and Assurance", "kind": "emergent", "summary": "Why fielded systems are distrusted and how trust might be earned.", "noteIds": ["n2", "n4", "n7", "n8", "n11", "n13"] },
+    { "id": "t3", "label": "Operational Tempo and Resilience", "kind": "emergent", "summary": "Speed as a value, and what happens when the system fails or is unavailable.", "noteIds": ["n3", "n9", "n12", "n14"] },
+    { "id": "t4", "label": "Procurement and Pace", "kind": "emergent", "summary": "Acquisition timelines as a constraint on capability.", "noteIds": ["n6", "n11"] }
+  ],
+  "bridges": [
+    { "id": "b1", "source": "n9", "target": "n1", "type": "tension", "rationale": "The pull toward speed strains the demand that a human remain accountable for each decision.", "ts": "2026-06-09T09:25:00.000Z" },
+    { "id": "b2", "source": "n3", "target": "n2", "type": "tension", "rationale": "A measured 80 percent efficiency gain did not translate into trust or adoption elsewhere.", "ts": "2026-06-09T09:26:00.000Z" },
+    { "id": "b3", "source": "n7", "target": "n8", "type": "echoes", "rationale": "Both show confident failure modes that erode operator trust.", "ts": "2026-06-09T09:28:00.000Z" },
+    { "id": "b4", "source": "n11", "target": "n2", "type": "causes", "rationale": "Opacity about training data feeds the trust deficit that leaves tools unused.", "ts": "2026-06-09T09:31:00.000Z" },
+    { "id": "b5", "source": "n6", "target": "n3", "type": "tension", "rationale": "The pace of acquisition lags the pace of capability the same systems can deliver.", "ts": "2026-06-09T09:34:00.000Z" },
+    { "id": "b6", "source": "n5", "target": "n10", "type": "echoes", "rationale": "Both press on the question of where accountability lands for a lethal outcome.", "ts": "2026-06-09T09:37:00.000Z" }
+  ],
+  "heuristicHits": [
+    { "id": "h1", "noteId": "n2", "slug": "principal-agent-problem", "name": "Principal-Agent Problem", "principle": "A delegate acts on their own incentives and private information, not yours, so good delegation is incentive design.", "questions": ["What does the agent gain or lose from each outcome?", "What can it do that I cannot observe?"], "why": "The tool is a delegated agent whose outputs users distrust, so adoption fails unless incentives, accountability, and information asymmetry are addressed.", "ts": "2026-06-09T09:08:00.000Z" },
+    { "id": "h2", "noteId": "n4", "slug": "base-rates", "name": "Base Rates", "principle": "Before trusting a vivid specific story, anchor on how often this kind of thing actually happens.", "questions": ["What reference class does this case belong to?", "How far should the specific evidence move me?"], "why": "Measuring trust before deployment is a prediction problem, so anchor on how often comparable systems have proven reliable.", "ts": "2026-06-09T09:12:00.000Z" },
+    { "id": "h3", "noteId": "n6", "slug": "theory-of-constraints", "name": "Theory of Constraints", "principle": "A system's throughput is set by its single tightest bottleneck; improving anything else is an illusion of progress.", "questions": ["What is the binding constraint here?", "Does this change relieve it or just move effort elsewhere?"], "why": "Procurement, not model capability, is the binding constraint on fielding useful systems.", "ts": "2026-06-09T09:16:00.000Z" }
+  ],
+  "factChecks": [
+    { "id": "f1", "noteId": "n3", "verdict": "unknown", "statement": "An AI logistics planner cut mission-planning time by about 80 percent.", "detail": "This specific after-action figure cannot be verified from the discussion. Large reductions are plausible for narrowly scoped, well-structured planning, but the number depends on the baseline process and whether humans still reviewed the output.", "ts": "2026-06-09T09:10:00.000Z" },
+    { "id": "f2", "noteId": "n8", "verdict": "verified", "statement": "Adversarial perturbations imperceptible to humans can flip a neural classifier's output.", "detail": "This is well established in the machine-learning security literature.", "ts": "2026-06-09T09:22:00.000Z" }
+  ],
+  "boundaryConditions": [
+    { "id": "bc1", "noteId": "n3", "text": "true, but only when the planning task is repetitive, the data is already structured, and the metric is drafting time rather than end-to-end approved mission planning", "ts": "2026-06-09T09:10:30.000Z" },
+    { "id": "bc2", "noteId": "n8", "text": "true for many neural classifiers, but adversarial training and input validation reduce the exposure, and robustness varies by architecture and threat model", "ts": "2026-06-09T09:22:30.000Z" }
+  ],
+  "generalisations": [
+    { "id": "g1", "noteId": "n3", "principle": "AI delivers its biggest gains by accelerating staff work and option generation, while humans retain responsibility for validation, trade-offs, and approval.", "coheresWith": ["Human Judgment and Accountability"], "ts": "2026-06-09T09:10:45.000Z" },
+    { "id": "g2", "noteId": "n7", "principle": "Confident failure on out-of-distribution inputs is the central assurance problem; benchmark performance is necessary but not sufficient for trust.", "coheresWith": ["Trust, Adoption and Assurance"], "ts": "2026-06-09T09:19:00.000Z" },
+    { "id": "g3", "noteId": "n6", "principle": "Acquisition pace, not model capability, is often the binding constraint on operational impact.", "coheresWith": ["Procurement and Pace"], "ts": "2026-06-09T09:16:30.000Z" }
+  ],
+  "feed": [],
+  "frames": [
+    { "id": "fr1", "name": "AI as staff officer", "frameKind": "metaphor", "gist": "The system drafts and advises at speed; a human commander still decides and owns the outcome.", "themeIds": ["t1", "t3"], "ts": "2026-06-09T09:40:00.000Z" },
+    { "id": "fr2", "name": "Principal-agent governance", "frameKind": "frame", "gist": "Fielding AI is a delegation problem: aligning incentives, observability, and accountability between the operator and an opaque agent.", "themeIds": ["t1", "t2"], "ts": "2026-06-09T09:41:00.000Z" }
+  ]
+}

@@ -81,16 +81,8 @@ function enqueue(task) {
   drain();
 }
 
-// Periodic theme consolidation: at most one queued at a time, never while paused.
-let mergePending = false;
-setInterval(() => {
-  if (store.get().paused || mergePending) return;
-  mergePending = true;
-  enqueue(async () => {
-    broadcastStatus('Consolidating themes…');
-    try { await mergeThemesPass(broadcast); } finally { broadcastStatus(''); mergePending = false; }
-  });
-}, 60000);
+// (Periodic work is now driven by the client-side /auto toggle, which round-robins
+//  organise → abduct → abstract → chunk → merge. No fixed server-side auto-pass.)
 
 // --- static files -----------------------------------------------------------
 const TYPES = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json', '.svg': 'image/svg+xml' };

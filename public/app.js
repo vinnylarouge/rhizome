@@ -110,11 +110,31 @@
       case '/abduct': flashCmd('Surfacing values & questions…'); post('/api/abduct'); break;
       case '/chunk': flashCmd('Chunking long points…'); post('/api/chunk'); break;
       case '/organise': case '/organize': flashCmd('Organising…'); LoomGraph.organise(); break;
+      case '/auto': toggleAuto(); break;
       case '/saymore':
         if (!selectedRef) { flashCmd('Select a feed item first'); break; }
         flashCmd('Elaborating…'); post('/api/saymore', { id: selectedRef }); break;
       default: flashCmd('Unknown command');
     }
+  }
+
+  // ---- /auto: round-robin one pass every 30s through the full cycle ----
+  const AUTO_CYCLE = ['organise', 'abduct', 'abstract', 'chunk', 'merge'];
+  let autoOn = false, autoTimer = null, autoIdx = 0;
+  function toggleAuto() {
+    autoOn = !autoOn;
+    const badge = document.getElementById('autoBadge');
+    if (badge) badge.hidden = !autoOn;
+    flashCmd(autoOn ? 'Auto-pilot ON · cycling every 30s' : 'Auto-pilot OFF');
+    if (autoOn) { autoIdx = 0; runAutoStep(); autoTimer = setInterval(runAutoStep, 30000); }
+    else if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+  }
+  function runAutoStep() {
+    if (state && state.paused) return;   // respect Pause AI
+    const step = AUTO_CYCLE[autoIdx % AUTO_CYCLE.length];
+    autoIdx++;
+    if (step === 'organise') LoomGraph.organise();
+    else fetch('/api/' + step, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).catch(() => {});
   }
 
   // brief command confirmation in the placeholder

@@ -15,6 +15,7 @@
       <span class="title" id="sessionTitle" contenteditable="true" spellcheck="false">Live Discussion</span>
     </div>
     <div class="controls">
+      <span id="autoBadge" class="auto-badge" hidden>⟳ AUTO</span>
       <span id="statusPill" class="status-pill" hidden></span>
       <span id="counts" class="counts"></span>
       <button id="pauseBtn" class="pill" title="Pause/resume all AI calls">⏸ Pause AI</button>
@@ -37,8 +38,8 @@
 
   <footer id="scratch">
     <div class="cmd-hint">
-      commands · <b>/organise</b> group · <b>/abduct</b> surface values &amp; questions · <b>/abstract</b> metaphors &amp; frames ·
-      <b>/chunk</b> split long points · <b>/merge</b> tidy themes · select a line then <b>/saymore</b>
+      commands · <b>/auto</b> auto-pilot (cycles every 30s) · <b>/organise</b> group · <b>/abduct</b> values &amp; questions ·
+      <b>/abstract</b> metaphors &amp; frames · <b>/chunk</b> split long · <b>/merge</b> tidy themes · select a line then <b>/saymore</b>
     </div>
     <div class="scratch-row">
       <textarea id="noteInput" rows="1" placeholder="Jot a note — shorthand & typos are fine, AI tidies them…  ⏎ to commit · Shift+⏎ for newline"></textarea>

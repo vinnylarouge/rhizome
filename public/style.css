@@ -200,6 +200,13 @@ body { display: flex; flex-direction: column; }
 }
 @keyframes statpulse { 0%, 100% { opacity: .7; } 50% { opacity: 1; } }
 
+/* ---- auto-pilot badge ---- */
+.auto-badge {
+  font-size: 11.5px; font-weight: 700; letter-spacing: .6px; color: #14161c;
+  background: var(--verified); border-radius: 999px; padding: 4px 11px;
+  animation: statpulse 1.6s ease-in-out infinite;
+}
+
 /* ---- graph ---- */
 #graphWrap { position: relative; overflow: hidden; background:
   radial-gradient(1200px 800px at 50% 40%, #14161d 0%, var(--bg) 70%); }

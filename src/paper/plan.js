@@ -1,12 +1,9 @@
 // plan.js — the deterministic linearizer. state -> paperPlan (pure, no network).
-// Implements the ordered grammar in docs/paper-grammar.md: slots graph elements
-// into sections, ranks themes by salience, resolves references, suppresses empty
-// sections. Same state in -> same plan out, so it is unit-testable in isolation.
-//
-// The output paperPlan carries *structured material* per section (not prose). The
-// citation agency (cite.js) decorates the cite-bearing sections; the prose
-// generator (style.js) turns each section's material into text in the prescribed
-// voice. Sections marked cite:true (evidence, heuristics) carry external receipts.
+// Builds the structured *material* for every possible section once, then a genre
+// (genres.js) chooses which sections appear, in what order, under what headings.
+// Same state + genre in -> same plan out, so it is unit-testable in isolation.
+
+import { GENRES, resolveGenre, DEFAULT_GENRE } from './genres.js';
 
 const DEFAULT_PARTICIPANTS = 'executives, university leaders, and senior military officers';
 
@@ -40,7 +37,7 @@ export function buildPlan(state, opts = {}) {
     noteById.has(id) ? text(noteById.get(id)) : themeById.has(id) ? themeById.get(id).label : id;
   const kindOf = (id) => (noteById.has(id) ? 'note' : themeById.has(id) ? 'theme' : 'unknown');
 
-  // theme salience = note count + bridge degree (touched by more links -> ranks higher)
+  // theme salience = note count + bridge degree
   const degree = new Map();
   for (const b of bridges) {
     degree.set(b.source, (degree.get(b.source) || 0) + 1);
@@ -57,31 +54,20 @@ export function buildPlan(state, opts = {}) {
 
   const tensionItems = bridges
     .filter((b) => b.type === 'tension')
-    .map((b) => ({
-      a: label(b.source), aKind: kindOf(b.source),
-      b: label(b.target), bKind: kindOf(b.target),
-      rationale: b.rationale || '',
-    }));
+    .map((b) => ({ a: label(b.source), aKind: kindOf(b.source), b: label(b.target), bKind: kindOf(b.target), rationale: b.rationale || '' }));
   const otherLinks = bridges
     .filter((b) => b.type === 'echoes' || b.type === 'causes')
     .map((b) => ({ type: b.type, a: label(b.source), b: label(b.target), rationale: b.rationale || '' }));
 
-  // findings by theme (ranked); keep to what was actually said (drop derived notes)
   const findings = rankedThemes
     .map((t) => ({
       label: t.label,
       summary: t.summary || '',
-      notes: (t.noteIds || [])
-        .map((id) => noteById.get(id))
-        .filter((n) => n && !n.derived)
-        .map((n) => ({ text: text(n), kind: n.kind })),
-      principles: generalisations
-        .filter((g) => (g.coheresWith || []).some((c) => c.toLowerCase() === t.label.toLowerCase()))
-        .map((g) => g.principle),
+      notes: (t.noteIds || []).map((id) => noteById.get(id)).filter((n) => n && !n.derived).map((n) => ({ text: text(n), kind: n.kind })),
+      principles: generalisations.filter((g) => (g.coheresWith || []).some((c) => c.toLowerCase() === t.label.toLowerCase())).map((g) => g.principle),
     }))
     .filter((f) => f.notes.length);
 
-  // evidence & caveats (cite-bearing): factChecks + matching boundary condition
   const evidence = (state.factChecks || []).map((f) => ({
     noteId: f.noteId,
     statement: f.statement,
@@ -100,7 +86,6 @@ export function buildPlan(state, opts = {}) {
 
   const considerations = generalisations.map((g) => ({ principle: g.principle, coheresWith: g.coheresWith || [] }));
 
-  // heuristics appendix (cite-bearing provenance), deduped by name
   const seenH = new Set();
   const heuristics = (state.heuristicHits || [])
     .map((h) => ({ name: h.name, principle: h.principle, why: h.why || '', prompt: text(noteById.get(h.noteId)) }))
@@ -121,11 +106,9 @@ export function buildPlan(state, opts = {}) {
     seedThemes: ['values', 'painpoints'],
     dateLine,
     synthesisDisclaimer:
-      'Findings and recommendations reflect the rapporteur’s synthesis of the discussion, ' +
-      'not direct endorsements by any individual participant.',
+      'Findings and recommendations reflect the rapporteur’s synthesis of the discussion, not direct endorsements by any individual participant.',
   };
 
-  // aggregate material for the synthesized sections (exec summary / intro / recs / conclusion)
   const aggregate = {
     title,
     topThemes: rankedThemes.slice(0, 5).map((t) => ({ label: t.label, summary: t.summary || '', notes: (t.noteIds || []).length })),
@@ -136,22 +119,32 @@ export function buildPlan(state, opts = {}) {
     openQuestions: openQuestions.map((q) => q.text),
   };
 
-  const S = [];
-  const add = (id, heading, role, cite, present, material) =>
-    S.push({ id, heading, role, cite: !!cite, present: !!present, material });
+  // Material for every possible section. A genre picks from these by id.
+  const slots = {
+    abstract: { role: 'abstract', cite: false, material: aggregate, present: true },
+    'key-findings': { role: 'key-findings', cite: false, material: { topThemes: aggregate.topThemes, principles: aggregate.principles, tensions: tensionItems, painpoints: aggregate.painpoints }, present: findings.length > 0 || considerations.length > 0 },
+    'exec-summary': { role: 'summary', cite: false, material: aggregate, present: true },
+    intro: { role: 'framing', cite: false, material: { title, values: aggregate.values, painpoints: aggregate.painpoints, centralTension: tensionItems[0] || null }, present: true },
+    about: { role: 'method', cite: false, material: { ...meta }, present: true },
+    findings: { role: 'body', cite: false, material: { themes: findings }, present: findings.length > 0 },
+    tensions: { role: 'tensions', cite: false, material: { tensions: tensionItems, otherLinks }, present: tensionItems.length > 0 },
+    frames: { role: 'frames', cite: false, material: { frames }, present: frames.length > 0 },
+    evidence: { role: 'evidence', cite: true, material: { items: evidence }, present: evidence.length > 0 },
+    considerations: { role: 'considerations', cite: false, material: { principles: considerations }, present: considerations.length > 0 },
+    recommendations: { role: 'recommendations', cite: false, material: { values: aggregate.values, painpoints: aggregate.painpoints, principles: considerations.map((c) => c.principle), tensions: tensionItems }, present: true },
+    'open-questions': { role: 'questions', cite: false, material: { items: openQuestions }, present: openQuestions.length > 0 },
+    conclusion: { role: 'conclusion', cite: false, material: { title }, present: true },
+    heuristics: { role: 'appendix', cite: true, material: { items: heuristics }, present: heuristics.length > 0 },
+  };
 
-  add('exec-summary', 'Executive Summary', 'summary', false, true, aggregate); // synthesized, written last
-  add('intro', 'Introduction', 'framing', false, true, { title, values: aggregate.values, painpoints: aggregate.painpoints, centralTension: tensionItems[0] || null });
-  add('about', 'About This Convening', 'method', false, true, { ...meta });
-  add('findings', 'Findings', 'body', false, findings.length > 0, { themes: findings });
-  add('tensions', 'Tensions and Trade-offs', 'tensions', false, tensionItems.length > 0, { tensions: tensionItems, otherLinks });
-  add('frames', 'Conceptual Frames', 'frames', false, frames.length > 0, { frames });
-  add('evidence', 'Evidence and Caveats', 'evidence', true, evidence.length > 0, { items: evidence });
-  add('considerations', 'Considerations and Emerging Principles', 'considerations', false, considerations.length > 0, { principles: considerations });
-  add('recommendations', 'Recommendations', 'recommendations', false, true, { values: aggregate.values, painpoints: aggregate.painpoints, principles: aggregate.principles, tensions: tensionItems });
-  add('open-questions', 'Open Questions', 'questions', false, openQuestions.length > 0, { items: openQuestions });
-  add('conclusion', 'Conclusion', 'conclusion', false, true, { title });
-  add('heuristics', 'Appendix: Thinking Tools Invoked', 'appendix', true, heuristics.length > 0, { items: heuristics });
+  const genre = resolveGenre(opts.genre);
+  const G = GENRES[genre];
+  const sections = G.layout
+    .map(({ id, heading, wrap }) => {
+      const s = slots[id];
+      return s && s.present ? { id, heading, wrap: wrap || 'section', role: s.role, cite: s.cite, material: s.material } : null;
+    })
+    .filter(Boolean);
 
   return {
     title,
@@ -160,9 +153,16 @@ export function buildPlan(state, opts = {}) {
     meta,
     fixedCitations: [CHATHAM_RULE_CITATION],
     aggregate,
-    sections: S.filter((s) => s.present),
+    genre,
+    template: G.template,
+    engine: G.engine,
+    voice: G.voice,
+    docKind: G.docKind,
+    sections,
   };
 }
+
+export { DEFAULT_GENRE };
 
 function formatDate(iso) {
   try {

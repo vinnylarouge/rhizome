@@ -62,23 +62,27 @@ use **`/compile`** (see below).
 
 ### `/compile` — the cited LaTeX report
 
-Type `/compile` in the board (a post-session, non-live step) to generate a Chatham
-House-style roundtable report as a typeset PDF. The pipeline:
+Type `/compile` in the board (a post-session, non-live step) to generate a typeset,
+cited PDF. Pick a genre: **`/compile`** (policy brief, the default), **`/compile academic`**
+(two-column paper), or **`/compile roundtable`** (Chatham House-style report). The pipeline:
 
 1. **Linearises** the graph into an ordered report (grammar: `docs/paper-grammar.md`).
 2. **Cites** empirical claims and heuristic provenance with *real, verified* sources:
    GPT-5.5 web-searches, then a strict verifier must quote the supporting passage or
    the claim is flagged `[unsupported]` — nothing is fabricated. Every decision is
    logged to `data/paper-<ts>/receipts.md`.
-3. **Writes** the prose against an anti-"AI-tell" style guide (`docs/style-guide.md`)
-   plus a final smell-check pass.
+3. **Writes** warm, readable prose in the genre's voice, constrained by an
+   anti-"AI-tell" style guide (`docs/style-guide.md`) plus a final smell-check pass.
 4. **Compiles** with `latexmk` (biblatex / biber / hyperref) to
    `data/paper-<ts>/paper-<ts>.pdf`, citation URLs clickable. A download link appears
    in the feed.
 
-Uses `LOOM_PAPER_MODEL` (default `gpt-5.5`); the live workers stay on `gpt-5.4`.
-Needs a LaTeX toolchain (`latexmk`, `biber`) and web access for the citations; if
-web search is unavailable it proceeds with no citations rather than inventing them.
+Genres are defined in `src/paper/genres.js` (section order, voice, template); each
+renders through `templates/{brief,report,academic}.tex.js` with TeX Gyre fonts via
+pdflatex. Uses `LOOM_PAPER_MODEL` (default `gpt-5.5`); the live workers stay on
+`gpt-5.4`. Needs a LaTeX toolchain (`latexmk`, `biber`) and web access for the
+citations; if web search is unavailable it proceeds with no citations rather than
+inventing them.
 
 ## Morning-of checklist
 

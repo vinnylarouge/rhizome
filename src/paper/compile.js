@@ -39,11 +39,11 @@ function writeReceipts(dir, doc, plan, enabled) {
   } catch { /* manifest is best-effort */ }
 }
 
-export async function compilePaper(state, { onProgress = () => {}, outDir, citationsEnabled } = {}) {
+export async function compilePaper(state, { onProgress = () => {}, outDir, citationsEnabled, genre } = {}) {
   outDir = outDir || path.join(process.cwd(), 'data');
 
   onProgress('Linearising the discussion…');
-  const plan = buildPlan(state);
+  const plan = buildPlan(state, { genre });
 
   let enabled = citationsEnabled;
   if (enabled === undefined) {
@@ -65,6 +65,7 @@ export async function compilePaper(state, { onProgress = () => {}, outDir, citat
   return {
     ok: res.ok,
     stem,
+    genre: plan.genre,
     dir: res.dir,
     texPath: res.texPath,
     pdfPath: res.pdfPath,

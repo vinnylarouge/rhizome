@@ -113,7 +113,16 @@
       case '/abstract': flashCmd('Finding abstractions…'); post('/api/abstract'); break;
       case '/abduct': flashCmd('Surfacing values & questions…'); post('/api/abduct'); break;
       case '/chunk': flashCmd('Chunking long points…'); post('/api/chunk'); break;
-      case '/compile': flashCmd('Compiling the report — this can take a few minutes…'); post('/api/compile'); break;
+      case '/compile': {
+        const a = raw.split(/\s+/)[1] ? raw.split(/\s+/)[1].toLowerCase() : '';
+        const genre = a === 'academic' || a === 'paper' ? 'academic'
+          : a === 'roundtable' || a === 'report' ? 'roundtable'
+          : a === 'policy' || a === 'brief' || a === 'policy-brief' ? 'policy-brief'
+          : undefined;
+        flashCmd(`Compiling ${genre || 'policy brief'} — this can take a few minutes…`);
+        post('/api/compile', genre ? { genre } : {});
+        break;
+      }
       case '/organise': case '/organize': flashCmd('Organising…'); LoomGraph.organise(); break;
       case '/auto': toggleAuto(); break;
       case '/saymore':

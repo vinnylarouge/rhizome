@@ -47,13 +47,16 @@ async function rawCall(body, timeoutMs) {
 export async function chatJSON({ tier = 'fast', model: modelOverride, effort: effortOverride, system, user, label = 'worker', maxTokens = 700, timeoutMs = 30000 }) {
   const model = modelOverride || (tier === 'strong' ? STRONG : FAST);
   const effort = effortOverride || (modelOverride ? PAPER_EFFORT : tier === 'strong' ? STRONG_EFFORT : FAST_EFFORT);
+  // OpenAI's json_object response_format requires the literal word "json" somewhere
+  // in the messages; guard so a prompt that forgets it can't 400 and silently drop output.
+  const sys = /json/i.test(system) || /json/i.test(user) ? system : `${system}\nRespond with a single JSON object.`;
   const body = {
     model,
     reasoning_effort: effort,
     response_format: { type: 'json_object' },
     max_completion_tokens: maxTokens,
     messages: [
-      { role: 'system', content: system },
+      { role: 'system', content: sys },
       { role: 'user', content: user },
     ],
   };

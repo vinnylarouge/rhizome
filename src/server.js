@@ -192,17 +192,19 @@ const server = http.createServer(async (req, res) => {
     enqueue(async () => { broadcastStatus('Surfacing values & questions…'); try { await abductPass(broadcast); } finally { broadcastStatus(''); } });
     return json(res, 200, { ok: true });
   }
-  // /compile — turn the session into a cited LaTeX roundtable report (post-session,
+  // /compile [genre] — turn the session into a cited LaTeX paper (post-session,
   // long-running). Enqueued like other passes so it never races note enrichment.
   if (req.method === 'POST' && url === '/api/compile') {
+    const body = await readBody(req);
+    const genre = body.genre; // 'policy-brief' | 'roundtable' | 'academic' (undefined -> default)
     enqueue(async () => {
-      broadcastStatus('Compiling roundtable report…');
+      broadcastStatus('Compiling the report…');
       try {
-        const out = await compilePaper(store.get(), { outDir: path.join(ROOT, 'data'), onProgress: (m) => broadcastStatus(m) });
+        const out = await compilePaper(store.get(), { outDir: path.join(ROOT, 'data'), genre, onProgress: (m) => broadcastStatus(m) });
         if (out.ok) {
           const rel = `${out.stem}/${out.stem}.pdf`;
           const link = '/api/paper?file=' + encodeURIComponent(rel);
-          store.addFeedItem({ type: 'paper', head: 'report', text: `Report compiled — ${out.counts.verifiedCitations} verified citations across ${out.counts.notes} notes`, detail: link });
+          store.addFeedItem({ type: 'paper', head: out.genre, text: `${out.counts.verifiedCitations} verified citations across ${out.counts.notes} notes`, detail: link });
           broadcastPaper(link, true);
         } else {
           store.addFeedItem({ type: 'paper', head: 'failed', text: 'Report compile failed (see terminal)', detail: '' });

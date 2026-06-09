@@ -1,33 +1,35 @@
 // latex.js — assemble a finished paper (title + TeX-ready section bodies + receipts)
-// into .tex + .bib and compile to PDF with latexmk. No LLM here: pure string
-// assembly + a child-process compile. Kept deterministic and testable.
+// into .tex + .bib and compile to PDF with latexmk. No LLM here: pure string assembly
+// + a child-process compile. The template is chosen by genre (doc.template); sections
+// carry a `wrap` hint (section / box / abstract) that controls how each is framed.
 
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { documentTeX } from '../../templates/report.tex.js';
+import { documentTeX as reportTeX } from '../../templates/report.tex.js';
+import { documentTeX as briefTeX } from '../../templates/brief.tex.js';
+import { documentTeX as academicTeX } from '../../templates/academic.tex.js';
 
 const pexec = promisify(execFile);
+const TEMPLATES = { report: reportTeX, brief: briefTeX, academic: academicTeX };
+const ENGINE_FLAG = { pdf: '-pdf', xelatex: '-xelatex', lualatex: '-lualatex' };
 
 const ESC = {
   '\\': '\\textbackslash{}', '&': '\\&', '%': '\\%', '$': '\\$', '#': '\\#',
   '_': '\\_', '{': '\\{', '}': '\\}', '~': '\\textasciitilde{}', '^': '\\textasciicircum{}',
 };
-// Escape arbitrary text for LaTeX. Apply to every piece of model/user text BEFORE
-// inserting \cite{}/\autocite{} markers (whose braces must NOT be escaped).
+// Escape arbitrary text for LaTeX. Apply to model/user text BEFORE inserting
+// \cite{}/\autocite{} markers (whose braces must NOT be escaped).
 export function escapeTeX(s = '') {
   return String(s).replace(/[\\&%$#_{}~^]/g, (c) => ESC[c]);
 }
 
-// Build a biblatex .bib from receipt records. Each: {key, type?, author?, title,
-// year?, url, urldate?, note?, journal?, publisher?}. Defaults to @online — the
-// honest entry type for a fetched web receipt.
+// Build a biblatex .bib from receipt records. Name fields get an extra brace pair so
+// biber treats the value as one literal unit — web-extracted author lists are
+// comma-separated and would otherwise trip biber's "too many commas" parser.
 export function toBib(references = []) {
   const field = (k, v) => (v ? `  ${k} = {${String(v).replace(/[{}]/g, '')}},\n` : '');
-  // Name fields get an extra brace pair so biber treats the whole value as one
-  // literal unit — web-extracted author lists are comma-separated ("First Last,
-  // First Last, ...") and would otherwise trip biber's "too many commas" parser.
   const nameField = (k, v) => (v ? `  ${k} = {{${String(v).replace(/[{}]/g, '')}}},\n` : '');
   return references
     .map((r) => {
@@ -47,16 +49,23 @@ export function toBib(references = []) {
     .join('\n');
 }
 
-// sections: [{ heading, body }] where body is ALREADY TeX-ready (escaped + cites).
+// sections: [{ heading, body, wrap }] where body is ALREADY TeX-ready.
 function renderBody(sections = []) {
-  return sections.map((s) => `\\section{${escapeTeX(s.heading)}}\n${s.body}\n`).join('\n');
+  return sections
+    .map((s) => {
+      if (s.wrap === 'box') return `\\begin{loombox}{${escapeTeX(s.heading)}}\n${s.body}\n\\end{loombox}`;
+      if (s.wrap === 'abstract') return `\\begin{abstract}\n${s.body}\n\\end{abstract}`;
+      return `\\section{${escapeTeX(s.heading)}}\n${s.body}`;
+    })
+    .join('\n\n');
 }
 
 // Assemble the .tex + .bib strings from a finished paper document.
-export function assemble({ title, dateLine, framingNote, sections, references }) {
+export function assemble({ title, dateLine, framingNote, sections, references, template }) {
   const bibFile = 'paper.bib';
-  const tex = documentTeX({
-    title: escapeTeX(title || 'Roundtable Report'),
+  const docTeX = TEMPLATES[template] || TEMPLATES.report;
+  const tex = docTeX({
+    title: escapeTeX(title || 'Report'),
     dateLine: escapeTeX(dateLine || ''),
     framingNote: framingNote ? escapeTeX(framingNote) : '',
     bodyTeX: renderBody(sections),
@@ -66,7 +75,8 @@ export function assemble({ title, dateLine, framingNote, sections, references })
 }
 
 // Write .tex/.bib into outDir/<stem>/ and compile with latexmk (which runs biber
-// automatically for biblatex). Returns { ok, texPath, pdfPath, dir, log }.
+// automatically). Engine from doc.engine (pdf | xelatex | lualatex). Returns
+// { ok, texPath, pdfPath, dir, log }.
 export async function compile(doc, { outDir, stem }) {
   const dir = path.join(outDir, stem);
   fs.mkdirSync(dir, { recursive: true });
@@ -75,12 +85,13 @@ export async function compile(doc, { outDir, stem }) {
   fs.writeFileSync(texPath, tex);
   fs.writeFileSync(path.join(dir, bibFile), bib);
 
+  const flag = ENGINE_FLAG[doc.engine] || '-pdf';
   let ok = true;
   let log = '';
   try {
     const { stdout, stderr } = await pexec(
       'latexmk',
-      ['-pdf', '-interaction=nonstopmode', '-halt-on-error', `${stem}.tex`],
+      [flag, '-interaction=nonstopmode', '-halt-on-error', `${stem}.tex`],
       { cwd: dir, timeout: 120000, maxBuffer: 10 * 1024 * 1024 }
     );
     log = stdout + stderr;

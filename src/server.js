@@ -8,6 +8,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 
+import { loadEnv } from './paths.js';
+import * as settings from './settings.js';
 import * as store from './store.js';
 import { loadHeuristics } from './heuristics.js';
 import { processNote, mergeThemesPass, mergeFramesPass, abstractPass, elaborate, chunkPass, abductPass } from './workers.js';
@@ -18,19 +20,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
 const PUBLIC = path.join(ROOT, 'public');
 
-// --- tiny .env loader (no dependency) --------------------------------------
-function loadEnv() {
-  try {
-    const txt = fs.readFileSync(path.join(ROOT, '.env'), 'utf8');
-    for (const line of txt.split('\n')) {
-      const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
-      if (m && !(m[1] in process.env)) process.env[m[1]] = m[2];
-    }
-  } catch {
-    /* .env optional if vars already in environment */
-  }
-}
 loadEnv();
+settings.load(); // after loadEnv so .env-provided keys are visible as overrides
 
 store.load();
 loadHeuristics();

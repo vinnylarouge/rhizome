@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
+    "test": "node --test",
     "export": "node scripts/export.js",
     "cost": "node scripts/cost.js",
     "reset": "node scripts/reset.js"

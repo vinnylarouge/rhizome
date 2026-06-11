@@ -4,10 +4,11 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { activeSessionDir, home } from './paths.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const COSTS_FILE = path.join(__dirname, '..', 'data', 'costs.jsonl');
+// Costs land with the session they belong to; calls made with no session open
+// (e.g. settings-page connection tests) fall back to the home dir.
+const costsFile = () => path.join(activeSessionDir() || home(), 'costs.jsonl');
 
 // USD per 1M tokens — ASSUMED placeholders, edit to your actual rates.
 const RATES = {
@@ -33,6 +34,6 @@ export function recordUsage({ model, label, usage }) {
     est_usd: Number(usd.toFixed(6)),
   };
   try {
-    fs.appendFileSync(COSTS_FILE, JSON.stringify(row) + '\n');
+    fs.appendFileSync(costsFile(), JSON.stringify(row) + '\n');
   } catch { /* never let cost logging break a worker */ }
 }

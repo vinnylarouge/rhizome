@@ -177,6 +177,23 @@ const server = http.createServer(async (req, res) => {
     return json(res, 200, { ok: true });
   }
 
+  // --- settings (work regardless of active session; keys never leave redacted) ---
+  if (req.method === 'GET' && url === '/api/settings') {
+    return json(res, 200, { settings: settings.redacted(), schemas: ext.schemas() });
+  }
+  if (req.method === 'POST' && url === '/api/settings') {
+    const body = await readBody(req);
+    settings.update(body.settings || {});
+    // Hot reload is free: llm.js resolves tiers at call time. Just tell the room.
+    console.log('[settings] updated; tiers now:', JSON.stringify(describeTiers()));
+    return json(res, 200, { ok: true, settings: settings.redacted() });
+  }
+  if (req.method === 'POST' && url === '/api/settings/test') {
+    const body = await readBody(req);
+    const ok = await selfTest(body.tier || 'fast');
+    return json(res, 200, { ok });
+  }
+
   // Everything below operates on the active session.
   if (url.startsWith('/api/') && url !== '/api/health' && !store.hasActive() && req.method === 'POST') {
     return json(res, 409, { error: 'no-session' });

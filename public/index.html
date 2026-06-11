@@ -16,6 +16,7 @@
     </div>
     <div class="controls">
       <button id="libraryBtn" class="pill" title="Session library (/sessions)">⛁ Sessions</button>
+      <button id="settingsBtn" class="pill" title="Settings (/settings)">⚙</button>
       <span id="autoBadge" class="auto-badge" hidden>⟳ AUTO</span>
       <span id="statusPill" class="status-pill" hidden></span>
       <span id="counts" class="counts"></span>
@@ -47,6 +48,26 @@
       <button id="commitBtn" class="commit">Commit ⏎</button>
     </div>
   </footer>
+
+  <div id="settingsOverlay" class="overlay" hidden>
+    <div class="overlay-panel">
+      <div class="overlay-head">
+        <span class="overlay-title">⚙ Rhizome — settings</span>
+        <span>
+          <span id="settingsSaved" class="saved-note" hidden>✓ saved</span>
+          <button id="settingsSave" class="commit">Save</button>
+          <button id="settingsClose" class="pill">✕ Close</button>
+        </span>
+      </div>
+      <div class="col-head">Providers</div>
+      <div id="providerCards"></div>
+      <div id="providerPresets" class="preset-row"></div>
+      <div class="col-head">Model tiers</div>
+      <div id="tierRows"></div>
+      <div class="col-head">Extensions</div>
+      <div id="extSettings"></div>
+    </div>
+  </div>
 
   <div id="searchOverlay" class="overlay" hidden>
     <div class="overlay-panel">
@@ -84,6 +105,7 @@
   <script src="/graph.js"></script>
   <script src="/library.js"></script>
   <script src="/search.js"></script>
+  <script src="/settings.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

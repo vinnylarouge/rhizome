@@ -132,6 +132,7 @@
       }
       case '/organise': case '/organize': flashCmd('Organising…'); LoomGraph.organise(); break;
       case '/sessions': RhizomeLibrary.show(); break;
+      case '/settings': RhizomeSettings.show(); break;
       case '/auto': toggleAuto(); break;
       case '/search': RhizomeSearch.show(raw.slice(cmd.length).trim()); break;
       case '/saymore':
@@ -183,8 +184,18 @@
     setTimeout(() => { input.placeholder = input.dataset.ph; }, 1800);
   }
 
-  // ---- session library ----
+  // ---- session library + settings ----
   document.getElementById('libraryBtn').addEventListener('click', () => RhizomeLibrary.show());
+  document.getElementById('settingsBtn').addEventListener('click', () => RhizomeSettings.show());
+
+  // Native menu actions arrive over the Electron bridge (absent in plain browsers).
+  window.rhizome?.onAction?.((action) => {
+    if (action === 'library') RhizomeLibrary.show();
+    else if (action === 'settings') RhizomeSettings.show();
+    else if (action === 'search') RhizomeSearch.show();
+    else if (action === 'new-session') RhizomeLibrary.show();
+    else if (action === 'obsidian') runCommand('/obsidian');
+  });
 
   // ---- pause ----
   const pauseBtn = document.getElementById('pauseBtn');

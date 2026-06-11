@@ -10,6 +10,7 @@ import { WebSocketServer } from 'ws';
 
 import { loadEnv } from './paths.js';
 import * as settings from './settings.js';
+import * as cores from './cores.js';
 import * as store from './store.js';
 import { loadHeuristics } from './heuristics.js';
 import { processNote, mergeThemesPass, mergeFramesPass, abstractPass, elaborate, chunkPass, abductPass } from './workers.js';
@@ -22,6 +23,7 @@ const PUBLIC = path.join(ROOT, 'public');
 
 loadEnv();
 settings.load(); // after loadEnv so .env-provided keys are visible as overrides
+cores.seed();    // bundled cores → user dir (first run only; edits never clobbered)
 
 store.load();
 loadHeuristics();
@@ -119,6 +121,7 @@ const server = http.createServer(async (req, res) => {
   const url = req.url.split('?')[0];
 
   if (req.method === 'GET' && url === '/api/state') return json(res, 200, store.get());
+  if (req.method === 'GET' && url === '/api/cores') return json(res, 200, { cores: cores.list() });
   if (req.method === 'GET' && url === '/api/health')
     return json(res, 200, { ok: true, tiers: describeTiers(), paused: store.get().paused, notes: store.get().notes.length });
 
@@ -187,7 +190,8 @@ const server = http.createServer(async (req, res) => {
   // long-running). Enqueued like other passes so it never races note enrichment.
   if (req.method === 'POST' && url === '/api/compile') {
     const body = await readBody(req);
-    const genre = body.genre; // 'policy-brief' | 'roundtable' | 'academic' (undefined -> default)
+    // 'policy-brief' | 'roundtable' | 'academic'; undefined → the core's default genre
+    const genre = body.genre || cores.activeCore()?.compile?.defaultGenre;
     enqueue(async () => {
       broadcastStatus('Compiling the report…');
       try {

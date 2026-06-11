@@ -27,6 +27,8 @@
   let hullsOn = false;          // toggled by /organise
   let clusterStrength = 0;      // boosted by /organise
   let lastState = null;
+  let coreInfo = null;          // {id, name, anchors:[{id,label,parent,color}]} from state.core
+  let styledCoreId = null;      // which core's palette/legend is currently applied
 
   const sim = d3
     .forceSimulation()
@@ -59,12 +61,43 @@
     return 5.5;
   }
 
+  // Pinned scaffold positions for the core's anchors. Fixed layouts up to four
+  // anchors (3 reproduces loom's original triangle); more fall back to an ellipse.
+  const ANCHOR_LAYOUTS = {
+    1: [[0.5, 0.3]],
+    2: [[0.3, 0.32], [0.7, 0.32]],
+    3: [[0.26, 0.3], [0.74, 0.3], [0.5, 0.8]],
+    4: [[0.26, 0.28], [0.74, 0.28], [0.26, 0.8], [0.74, 0.8]],
+  };
   function anchorPos() {
-    return {
-      'anchor-values': { x: width * 0.26, y: height * 0.3 },
-      'anchor-painpoints': { x: width * 0.74, y: height * 0.3 },
-      'anchor-questions': { x: width * 0.5, y: height * 0.8 },
-    };
+    const anchors = coreInfo ? coreInfo.anchors : [];
+    const lay = ANCHOR_LAYOUTS[anchors.length];
+    const out = {};
+    anchors.forEach((a, i) => {
+      const frac = lay
+        ? lay[i]
+        : [0.5 + 0.35 * Math.cos((i / anchors.length) * 2 * Math.PI - Math.PI / 2),
+           0.5 + 0.3 * Math.sin((i / anchors.length) * 2 * Math.PI - Math.PI / 2)];
+      out[a.id] = { x: width * frac[0], y: height * frac[1] };
+    });
+    return out;
+  }
+
+  // Per-core palette: inject rules equivalent to style.css's p-values/p-painpoints/
+  // p-questions set, for every anchor parent the core defines. Injected <style>
+  // comes after the stylesheet, so equal-specificity rules win for custom cores.
+  function applyCoreStyles(core) {
+    let el = document.getElementById('coreColors');
+    if (!el) { el = document.createElement('style'); el.id = 'coreColors'; document.head.appendChild(el); }
+    el.textContent = core.anchors.map((a) => {
+      const p = a.parent, c = a.color || '#9aa3ad';
+      return `.link.p-${p}{stroke:${c};opacity:.26}` +
+        `.node-note.p-${p}{fill:${c}}` +
+        `.node-anchor.p-${p}{stroke:${c}}` +
+        `.node-note.derived.p-${p}{stroke:${c}}` +
+        `.label-anchor.p-${p}{fill:${c}}` +
+        `.legend .p-${p}::before{color:${c}}`;
+    }).join('\n');
   }
 
   function resize() {
@@ -140,6 +173,15 @@
 
   function update(state) {
     lastState = state;
+    if (state.core && state.core.id !== styledCoreId) {
+      coreInfo = state.core;
+      styledCoreId = state.core.id;
+      applyCoreStyles(coreInfo);
+      renderLegend();
+      resize(); // re-pin anchors for the (possibly different) anchor count
+    } else if (state.core) {
+      coreInfo = state.core;
+    }
     const { nodes, links } = buildGraph(state);
     const parentOf = new Map(nodes.map((n) => [n.id, n.parent]));
 
@@ -185,7 +227,7 @@
     gLabel.selectAll('text.glabel').data(nodes.filter((n) => n.type !== 'note'), (d) => d.id)
       .join(
         (enter) => enter.append('text')
-          .attr('class', (d) => (d.type === 'anchor' ? 'label-anchor p-' + (ANCHOR_KEY[d.id] || 'none') : d.type === 'frame' ? 'label-frame' : 'label-theme') + ' glabel')
+          .attr('class', (d) => (d.type === 'anchor' ? 'label-anchor p-' + (anchorParent(d.id) || 'none') : d.type === 'frame' ? 'label-frame' : 'label-theme') + ' glabel')
           .text((d) => d.label),
         (u) => u.text((d) => d.label), (ex) => ex.remove()
       );
@@ -199,7 +241,10 @@
     updateWorkingClass(); // re-apply drone "working" ring after the node rejoin
   }
 
-  const ANCHOR_KEY = { 'anchor-values': 'values', 'anchor-painpoints': 'painpoints', 'anchor-questions': 'questions' };
+  function anchorParent(id) {
+    const a = coreInfo && coreInfo.anchors.find((x) => x.id === id);
+    return a ? a.parent : null;
+  }
   const glowing = new Set();
   function scheduleGlowClear(id) {
     setTimeout(() => {
@@ -209,7 +254,7 @@
   }
   function nodeClass(d) {
     let c;
-    if (d.type === 'anchor') c = 'node node-anchor p-' + (ANCHOR_KEY[d.id] || 'none');
+    if (d.type === 'anchor') c = 'node node-anchor p-' + (anchorParent(d.id) || 'none');
     else if (d.type === 'theme') c = 'node node-theme';
     else if (d.type === 'frame') c = 'node node-frame frame-' + (d.frameKind || 'frame');
     else c = 'node node-note p-' + (d.parent || 'none') + (d.derived ? ' derived' : '');
@@ -392,20 +437,25 @@
     return (s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   }
 
-  // legend — explains the parent-type colour coding (protanopia-safe hues)
-  document.getElementById('legend').innerHTML =
-    '<span class="lg p-values">values</span>' +
-    '<span class="lg p-painpoints">painpoints</span>' +
-    '<span class="lg p-questions">questions</span>' +
-    '<span class="lg lg-theme">theme</span>' +
-    '<span class="lg lg-frame">abstraction</span>' +
-    '<span class="lg lg-derived">inferred</span>' +
-    '<span class="lg-sep"></span>' +
-    '<span class="lg ed ed-tension">tension</span>' +
-    '<span class="lg ed ed-echoes">echoes</span>' +
-    '<span class="lg ed ed-causes">causes</span>' +
-    '<span class="lg ed ed-relates">relates</span>' +
-    '<span class="lg ed ed-abduced">inferred link</span>';
+  // legend — explains the parent-type colour coding (protanopia-safe hues).
+  // Anchor chips come from the active core; the rest is fixed vocabulary.
+  function renderLegend() {
+    const anchorChips = (coreInfo ? coreInfo.anchors : [])
+      .map((a) => `<span class="lg p-${a.parent}">${a.label.toLowerCase()}</span>`)
+      .join('');
+    document.getElementById('legend').innerHTML =
+      anchorChips +
+      '<span class="lg lg-theme">theme</span>' +
+      '<span class="lg lg-frame">abstraction</span>' +
+      '<span class="lg lg-derived">inferred</span>' +
+      '<span class="lg-sep"></span>' +
+      '<span class="lg ed ed-tension">tension</span>' +
+      '<span class="lg ed ed-echoes">echoes</span>' +
+      '<span class="lg ed ed-causes">causes</span>' +
+      '<span class="lg ed ed-relates">relates</span>' +
+      '<span class="lg ed ed-abduced">inferred link</span>';
+  }
+  renderLegend();
 
   resize();
   window.LoomGraph = { update, resize, organise, highlight, setActivity };

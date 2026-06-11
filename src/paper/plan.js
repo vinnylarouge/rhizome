@@ -4,6 +4,7 @@
 // Same state + genre in -> same plan out, so it is unit-testable in isolation.
 
 import { GENRES, resolveGenre, DEFAULT_GENRE } from './genres.js';
+import { activeCore } from '../cores.js';
 
 const DEFAULT_PARTICIPANTS = 'executives, university leaders, and senior military officers';
 
@@ -46,8 +47,13 @@ export function buildPlan(state, opts = {}) {
   const salience = (t) => (t.noteIds?.length || 0) + (degree.get(t.id) || 0);
   const rankedThemes = [...emergent].sort((a, b) => salience(b) - salience(a));
 
-  const valueNotes = notes.filter((n) => n.parent === 'values' || n.kind === 'value');
-  const painNotes = notes.filter((n) => n.parent === 'painpoints' || n.kind === 'painpoint');
+  // The paper's two material roles (positives / frictions) map onto core parents:
+  // values/painpoints for the roundtable core, wins/pains for a retrospective, etc.
+  const core = activeCore();
+  const roles = core?.compile?.roles || { values: 'values', painpoints: 'painpoints' };
+  const k2p = core?.kindToParent || { value: 'values', painpoint: 'painpoints', question: 'questions' };
+  const valueNotes = notes.filter((n) => n.parent === roles.values || k2p[n.kind] === roles.values);
+  const painNotes = notes.filter((n) => n.parent === roles.painpoints || k2p[n.kind] === roles.painpoints);
   const questionNotes = notes.filter((n) => n.kind === 'question');
   const generalisations = state.generalisations || [];
   const boundaries = state.boundaryConditions || [];
@@ -103,7 +109,7 @@ export function buildPlan(state, opts = {}) {
     themeCount: emergent.length,
     bridgeCount: bridges.length,
     participants,
-    seedThemes: ['values', 'painpoints'],
+    seedThemes: core ? core.anchors.map((a) => a.label.toLowerCase()) : ['values', 'painpoints'],
     dateLine,
     synthesisDisclaimer:
       'Findings and recommendations reflect the rapporteur’s synthesis of the discussion, not direct endorsements by any individual participant.',

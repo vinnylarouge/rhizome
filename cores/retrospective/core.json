@@ -1,0 +1,40 @@
+{
+  "id": "retrospective",
+  "name": "Retrospective (went well & went poorly)",
+  "description": "Team retrospective. Sorts what went well from what went poorly, collects concrete follow-ups under ACTIONS, and abduces underlying causes and next steps.",
+  "anchors": [
+    { "id": "anchor-wins", "label": "WENT WELL", "parent": "wins", "color": "#4ea0e0" },
+    { "id": "anchor-pains", "label": "WENT POORLY", "parent": "pains", "color": "#e8943b" },
+    { "id": "anchor-actions", "label": "ACTIONS", "parent": "actions", "color": "#b483e6" }
+  ],
+  "kinds": ["win", "pain", "action", "question", "claim", "anecdote", "other"],
+  "kindToParent": { "win": "wins", "pain": "pains", "action": "actions" },
+  "enrich": {
+    "heuristicKinds": ["pain", "question"],
+    "factcheckKinds": ["claim", "anecdote"],
+    "abduceKinds": ["pain", "claim", "anecdote"],
+    "skipKinds": ["other"]
+  },
+  "prompts": {
+    "triage": "You triage one rough scribe note from a team retrospective. The note is typed fast, with typos and shorthand. The two seed themes are WENT WELL and WENT POORLY; concrete follow-ups go under ACTIONS.\nFirst rewrite the note into one clear, concise, grammatical sentence (\"clean\") — expand shorthand, fix typos, preserve the original meaning exactly, invent nothing, add no speaker or attribution.\nReply ONLY with JSON: {\"clean\": \"the tidied note\", \"kind\": one of {{kinds}}, \"anchors\": array subset of {{anchorLabels}}, \"theme\": a short Title Case label (2-4 words) naming the substantive topic, or null if purely procedural}.",
+    "bridges": "You find non-obvious connections in a team retrospective. Given a NEW note and a list of existing notes and themes (each with an id), propose at most 2 genuinely insightful links FROM the new note TO an existing id. Prefer surprising cross-links (e.g. a thing that went poorly sharing a root cause with a thing that went well). If nothing is genuinely insightful, return an empty list — do not force it.\nReply ONLY with JSON: {\"bridges\":[{\"target\":\"<existing id>\",\"type\":one of \"tension\"|\"echoes\"|\"instance-of\"|\"causes\"|\"relates\",\"rationale\":\"one sentence\"}]}",
+    "heuristic": "You match a retrospective moment to the single most useful thinking heuristic from a catalog. Each line is: id | name | fires:HOOKS | principle. Choose the ONE whose firing conditions best fit this note, or \"none\" if none clearly applies.\nReply ONLY with JSON: {\"id\":\"<catalog id or none>\",\"why\":\"one sentence on why it fits here\"}",
+    "factcheck": "You provide live technical guidance on a claim or anecdote raised in a team retrospective. Be rigorous and honest. NEVER invent citations, statistics, or sources; if you are not confident, use verdict \"unknown\". Provide a boundary condition (when the claim holds vs breaks) and, if the item is an anecdote, the principle it generalises to.\nReply ONLY with JSON: {\"verdict\": one of \"verified\"|\"needs-nuance\"|\"contested\"|\"unknown\", \"statement\":\"the specific claim assessed\", \"detail\":\"1-2 sentences, no fabricated sources\", \"boundary\":\"true, but only when… (or empty string)\", \"principle\":\"generalised principle (or empty)\", \"coheresWith\": array of existing theme labels it connects to}",
+    "abduct": "You read one note from a team retrospective and abductively surface what is IMPLICIT but unstated. Infer (a) the UNDERLYING CAUSE the note points to — the process or structural reason beneath it, phrased as a short statement; and (b) a concrete ACTION the team should consider. Include each ONLY if it is clearly and non-trivially implied — otherwise use an empty string. Do not restate the note; surface what is beneath or ahead of it. Be conservative.\nReply ONLY with JSON: {\"cause\":\"short statement or empty\",\"action\":\"a concrete follow-up or empty\"}",
+    "abstract": "You analyse a team retrospective and identify the recurring ABSTRACTIONS beneath it: conceptual METAPHORS (e.g. \"shipping as firefighting\", \"tech debt as mortgage\") and conceptual FRAMES — the implicit model in play (e.g. \"capacity planning\", \"ownership boundaries\", \"feedback loops\"). Identify 2-5 that genuinely recur across multiple points; be insightful but not fanciful. For each, name which existing themes (by id) it spans.\nReply ONLY with JSON: {\"abstractions\":[{\"name\":\"short name\",\"kind\":\"metaphor\"|\"frame\",\"gist\":\"one sentence on how it shows up here\",\"themeIds\":[\"id\"]}]}",
+    "elaborate": "You elaborate one element of a team retrospective in 1-2 substantive sentences: add the most useful context, implication, or nuance a facilitator would want — concrete and rigorous, invent no facts or citations, and do not merely restate it.\nReply ONLY with JSON: {\"elaboration\":\"1-2 sentences\"}",
+    "mergeThemes": "You consolidate a list of emergent discussion themes. Identify groups of themes that name the SAME concept — synonyms, rephrasings, or trivial variants (\"Deploy Pipeline\" / \"The Deployment Pipeline\"). Be conservative: only merge themes that clearly refer to the same thing; never merge themes that are merely related or adjacent — keeping real distinctions matters. For each group pick the clearest canonical Title Case label.\nReply ONLY with JSON: {\"merges\":[{\"canonical\":\"Label\",\"ids\":[\"id1\",\"id2\"]}]}. Empty list if nothing should merge.",
+    "mergeFrames": "You consolidate a list of conceptual abstractions (metaphors and frames) from a discussion. Identify groups that name the SAME underlying idea — synonyms or rephrasings. Be conservative: only merge ones that clearly mean the same thing; never merge distinct ideas. For each group pick the clearest canonical name.\nReply ONLY with JSON: {\"merges\":[{\"canonical\":\"Name\",\"ids\":[\"id1\",\"id2\"]}]}. Empty list if nothing should merge.",
+    "chunk": "Break a long retrospective note into 2-5 atomic propositions or data points — each a single, short, self-contained factual or evaluative statement that could stand and be connected on its own. Preserve meaning; invent nothing; do not editorialise.\nReply ONLY with JSON: {\"props\":[\"...\",\"...\"]}"
+  },
+  "abduction": {
+    "targets": [
+      { "field": "cause", "kind": "claim", "parent": "pains", "anchorId": "anchor-pains", "rationale": "underlying cause" },
+      { "field": "action", "kind": "action", "parent": "actions", "anchorId": "anchor-actions", "rationale": "implied action" }
+    ]
+  },
+  "compile": {
+    "defaultGenre": "roundtable",
+    "roles": { "values": "wins", "painpoints": "pains" }
+  }
+}

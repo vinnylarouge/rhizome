@@ -1,0 +1,40 @@
+{
+  "id": "roundtable",
+  "name": "Roundtable (values & painpoints)",
+  "description": "Executive / policy roundtable on AI strategy. Surfaces the values at stake and the painpoints in the room; questions collect under their own anchor. The original loom core.",
+  "anchors": [
+    { "id": "anchor-values", "label": "VALUES", "parent": "values", "color": "#4ea0e0" },
+    { "id": "anchor-painpoints", "label": "PAINPOINTS", "parent": "painpoints", "color": "#e8943b" },
+    { "id": "anchor-questions", "label": "OPEN QUESTIONS", "parent": "questions", "color": "#b483e6" }
+  ],
+  "kinds": ["value", "painpoint", "question", "anecdote", "claim", "decision", "other"],
+  "kindToParent": { "value": "values", "painpoint": "painpoints", "question": "questions" },
+  "enrich": {
+    "heuristicKinds": ["question", "painpoint"],
+    "factcheckKinds": ["claim", "anecdote"],
+    "abduceKinds": ["painpoint", "claim", "anecdote"],
+    "skipKinds": ["other"]
+  },
+  "prompts": {
+    "triage": "You triage one rough scribe note from a live discussion on AI strategy among executives, university leaders and senior military officers. The note is typed fast, with typos and shorthand. The two seed themes are VALUES and PAINPOINTS; questions go under OPEN QUESTIONS.\nFirst rewrite the note into one clear, concise, grammatical sentence (\"clean\") — expand shorthand, fix typos, preserve the original meaning exactly, invent nothing, add no speaker or attribution.\nReply ONLY with JSON: {\"clean\": \"the tidied note\", \"kind\": one of {{kinds}}, \"anchors\": array subset of {{anchorLabels}}, \"theme\": a short Title Case label (2-4 words) naming the substantive topic, or null if purely procedural}.",
+    "bridges": "You find non-obvious connections in a live discussion. Given a NEW note and a list of existing notes and themes (each with an id), propose at most 2 genuinely insightful links FROM the new note TO an existing id. Prefer surprising cross-links (e.g. one person's painpoint echoing another's value). If nothing is genuinely insightful, return an empty list — do not force it.\nReply ONLY with JSON: {\"bridges\":[{\"target\":\"<existing id>\",\"type\":one of \"tension\"|\"echoes\"|\"instance-of\"|\"causes\"|\"relates\",\"rationale\":\"one sentence\"}]}",
+    "heuristic": "You match a live discussion moment to the single most useful thinking heuristic from a catalog. Each line is: id | name | fires:HOOKS | principle. Choose the ONE whose firing conditions best fit this note, or \"none\" if none clearly applies.\nReply ONLY with JSON: {\"id\":\"<catalog id or none>\",\"why\":\"one sentence on why it fits here\"}",
+    "factcheck": "You provide live technical guidance on a claim or anecdote in an AI-strategy discussion. Be rigorous and honest. NEVER invent citations, statistics, or sources; if you are not confident, use verdict \"unknown\". Provide a boundary condition (when the claim holds vs breaks) and, if the item is an anecdote, the principle it generalises to.\nReply ONLY with JSON: {\"verdict\": one of \"verified\"|\"needs-nuance\"|\"contested\"|\"unknown\", \"statement\":\"the specific claim assessed\", \"detail\":\"1-2 sentences, no fabricated sources\", \"boundary\":\"true, but only when… (or empty string)\", \"principle\":\"generalised principle (or empty)\", \"coheresWith\": array of existing theme labels it connects to}",
+    "abduct": "You read one note from a strategy discussion and abductively surface what is IMPLICIT but unstated. Infer (a) the underlying VALUE at stake — what participants implicitly care about, phrased as a short principle; and (b) an OPEN QUESTION the note raises that the group should address. Include each ONLY if it is clearly and non-trivially implied — otherwise use an empty string. Do not restate the note; surface what is beneath or ahead of it. Be conservative.\nReply ONLY with JSON: {\"value\":\"short principle or empty\",\"question\":\"a question or empty\"}",
+    "abstract": "You analyse a strategy discussion and identify the recurring ABSTRACTIONS beneath it: conceptual METAPHORS (e.g. \"AI as an arms race\", \"trust as currency\", \"data as territory\") and conceptual FRAMES — the implicit model in play (e.g. \"zero-sum competition\", \"principal-agent\", \"commons governance\"). Identify 2-5 that genuinely recur across multiple points; be insightful but not fanciful. For each, name which existing themes (by id) it spans.\nReply ONLY with JSON: {\"abstractions\":[{\"name\":\"short name\",\"kind\":\"metaphor\"|\"frame\",\"gist\":\"one sentence on how it shows up here\",\"themeIds\":[\"id\"]}]}",
+    "elaborate": "You elaborate one element of a live AI-strategy discussion in 1-2 substantive sentences: add the most useful context, implication, or nuance a facilitator would want — concrete and rigorous, invent no facts or citations, and do not merely restate it.\nReply ONLY with JSON: {\"elaboration\":\"1-2 sentences\"}",
+    "mergeThemes": "You consolidate a list of emergent discussion themes. Identify groups of themes that name the SAME concept — synonyms, rephrasings, or trivial variants (\"AI Trust\" / \"Trust in AI\"). Be conservative: only merge themes that clearly refer to the same thing; never merge themes that are merely related or adjacent — keeping real distinctions matters. For each group pick the clearest canonical Title Case label.\nReply ONLY with JSON: {\"merges\":[{\"canonical\":\"Label\",\"ids\":[\"id1\",\"id2\"]}]}. Empty list if nothing should merge.",
+    "mergeFrames": "You consolidate a list of conceptual abstractions (metaphors and frames) from a discussion. Identify groups that name the SAME underlying idea — synonyms or rephrasings (e.g. \"Trust as social license\" / \"Trust as a license to operate\"). Be conservative: only merge ones that clearly mean the same thing; never merge distinct ideas. For each group pick the clearest canonical name.\nReply ONLY with JSON: {\"merges\":[{\"canonical\":\"Name\",\"ids\":[\"id1\",\"id2\"]}]}. Empty list if nothing should merge.",
+    "chunk": "Break a long discussion note into 2-5 atomic propositions or data points — each a single, short, self-contained factual or evaluative statement that could stand and be connected on its own. Preserve meaning; invent nothing; do not editorialise.\nReply ONLY with JSON: {\"props\":[\"...\",\"...\"]}"
+  },
+  "abduction": {
+    "targets": [
+      { "field": "value", "kind": "value", "parent": "values", "anchorId": "anchor-values", "rationale": "implied value" },
+      { "field": "question", "kind": "question", "parent": "questions", "anchorId": "anchor-questions", "rationale": "question raised" }
+    ]
+  },
+  "compile": {
+    "defaultGenre": "policy-brief",
+    "roles": { "values": "values", "painpoints": "painpoints" }
+  }
+}

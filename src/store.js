@@ -5,28 +5,26 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { home } from './paths.js';
+import * as cores from './cores.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = path.join(__dirname, '..', 'data');
-const STATE_FILE = path.join(DATA_DIR, 'session.json');
-const EVENTS_FILE = path.join(DATA_DIR, 'events.jsonl');
-
-const ANCHORS = [
-  { id: 'anchor-values', label: 'VALUES', kind: 'anchor' },
-  { id: 'anchor-painpoints', label: 'PAINPOINTS', kind: 'anchor' },
-  { id: 'anchor-questions', label: 'OPEN QUESTIONS', kind: 'anchor' },
-];
+const STATE_FILE = () => path.join(home(), 'session.json');
+const EVENTS_FILE = () => path.join(home(), 'events.jsonl');
 
 let state = null;
 let saveTimer = null;
 
-function freshState() {
+function anchorTheme(a) {
+  return { id: a.id, label: a.label, kind: 'anchor', summary: '', noteIds: [] };
+}
+
+function freshState(core) {
   return {
-    session: { id: 'loom-' + Date.now(), title: 'Live Discussion', startedAt: new Date().toISOString() },
+    session: { id: 'rhizome-' + Date.now(), title: 'Live Discussion', coreId: core.id, startedAt: new Date().toISOString() },
+    core: cores.clientSummary(core), // what the browser needs: anchors, parents, colours
     paused: false,
     notes: [],
-    themes: ANCHORS.map((a) => ({ ...a, summary: '', noteIds: [] })),
+    themes: core.anchors.map(anchorTheme),
     bridges: [],
     heuristicHits: [],
     factChecks: [],
@@ -40,26 +38,31 @@ function freshState() {
 const trunc = (s, n) => (s && s.length > n ? s.slice(0, n) + '…' : s || '');
 
 export function load() {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (fs.existsSync(STATE_FILE)) {
+  let loaded = null;
+  if (fs.existsSync(STATE_FILE())) {
     try {
-      state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
-      // Defensive: ensure anchors and feed always exist even if an old file is loaded.
-      for (const a of ANCHORS) {
-        if (!state.themes.find((t) => t.id === a.id)) {
-          state.themes.unshift({ ...a, summary: '', noteIds: [] });
-        }
-      }
-      if (!Array.isArray(state.feed)) state.feed = [];
-      if (!Array.isArray(state.frames)) state.frames = [];
-      console.log(`[store] resumed session with ${state.notes.length} notes`);
+      loaded = JSON.parse(fs.readFileSync(STATE_FILE(), 'utf8'));
     } catch (e) {
       console.error('[store] session.json unreadable, backing up and starting fresh:', e.message);
-      fs.renameSync(STATE_FILE, STATE_FILE + '.corrupt-' + Date.now());
-      state = freshState();
+      fs.renameSync(STATE_FILE(), STATE_FILE() + '.corrupt-' + Date.now());
     }
+  }
+  // The session's core drives anchors/prompts; legacy loom sessions are roundtable.
+  const core = cores.get(loaded?.session?.coreId || 'roundtable') || cores.get('roundtable');
+  cores.setActive(core);
+  if (loaded) {
+    state = loaded;
+    state.session.coreId = core.id;
+    state.core = cores.clientSummary(core); // recomputed so core edits propagate
+    // Defensive: ensure anchors and feed always exist even if an old file is loaded.
+    for (const a of core.anchors) {
+      if (!state.themes.find((t) => t.id === a.id)) state.themes.unshift(anchorTheme(a));
+    }
+    if (!Array.isArray(state.feed)) state.feed = [];
+    if (!Array.isArray(state.frames)) state.frames = [];
+    console.log(`[store] resumed session with ${state.notes.length} notes`);
   } else {
-    state = freshState();
+    state = freshState(core);
   }
   return state;
 }
@@ -71,9 +74,9 @@ export function get() {
 // Atomic write: write to a temp file then rename (rename is atomic on the same fs),
 // so a crash mid-write can never leave a half-written, corrupt session.json.
 function persist() {
-  const tmp = STATE_FILE + '.tmp';
+  const tmp = STATE_FILE() + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(state, null, 2));
-  fs.renameSync(tmp, STATE_FILE);
+  fs.renameSync(tmp, STATE_FILE());
 }
 
 // Debounce disk writes so a burst of worker updates coalesces, but never lose
@@ -88,7 +91,7 @@ function scheduleSave() {
 
 function logEvent(type, payload) {
   try {
-    fs.appendFileSync(EVENTS_FILE, JSON.stringify({ t: new Date().toISOString(), type, payload }) + '\n');
+    fs.appendFileSync(EVENTS_FILE(), JSON.stringify({ t: new Date().toISOString(), type, payload }) + '\n');
   } catch (e) {
     console.error('[store] event log failed:', e.message);
   }

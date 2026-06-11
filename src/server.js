@@ -16,6 +16,8 @@ import { loadHeuristics } from './heuristics.js';
 import { processNote, mergeThemesPass, mergeFramesPass, abstractPass, elaborate, chunkPass, abductPass } from './workers.js';
 import { compilePaper } from './paper/compile.js';
 import { describeTiers, selfTest } from './llm.js';
+import * as ext from './extensions/index.js';
+import { query as searchQuery } from './extensions/search.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
@@ -27,7 +29,11 @@ cores.seed();    // bundled cores → user dir (first run only; edits never clob
 
 store.load();
 loadHeuristics();
+await ext.loadAll();
 const PORT = Number(process.env.PORT) || 7777;
+
+// Context handed to extension command handlers and event hooks.
+const extCtx = () => ({ store, settings, broadcastStatus, broadcast });
 
 // --- websocket broadcast ----------------------------------------------------
 let wss;
@@ -145,6 +151,32 @@ const server = http.createServer(async (req, res) => {
     return json(res, ok ? 200 : 404, { ok });
   }
 
+  // --- search + extension commands (work regardless of active session) ---
+  if (req.method === 'GET' && url === '/api/search') {
+    const q = (new URL(req.url, 'http://x').searchParams.get('q') || '').trim();
+    if (!q) return json(res, 200, { mode: 'none', results: [] });
+    return json(res, 200, await searchQuery(q));
+  }
+  if (req.method === 'POST' && url === '/api/command') {
+    const body = await readBody(req);
+    const cmd = ext.commands()[(body.cmd || '').toLowerCase()];
+    if (!cmd) return json(res, 404, { error: 'unknown command' });
+    enqueue(async () => {
+      broadcastStatus(cmd.hint + '…');
+      try {
+        const msg = await cmd.handler(body.args || '', extCtx());
+        if (msg && store.hasActive()) store.addFeedItem({ type: 'extension', head: cmd.extId, text: msg });
+        else if (msg) broadcastStatus(msg);
+      } catch (e) {
+        console.error(`[ext:${cmd.extId}] command failed:`, e.message);
+      } finally {
+        broadcastStatus('');
+        broadcast();
+      }
+    });
+    return json(res, 200, { ok: true });
+  }
+
   // Everything below operates on the active session.
   if (url.startsWith('/api/') && url !== '/api/health' && !store.hasActive() && req.method === 'POST') {
     return json(res, 409, { error: 'no-session' });
@@ -178,6 +210,10 @@ const server = http.createServer(async (req, res) => {
     enqueue(async () => {                              // enrichment happens async (drone on the node)
       setActive(note.id, true);
       try { await processNote(note.id, broadcast); } finally { setActive(note.id, false); }
+      // Tell extensions (e.g. the search indexer) about the enriched note.
+      const s = store.get();
+      const fresh = s && s.notes.find((n) => n.id === note.id);
+      if (fresh) await ext.emit('note-enriched', { sessionId: s.session.id, note: fresh }, extCtx());
     });
     return json(res, 200, { note });
   }

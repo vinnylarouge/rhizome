@@ -43,7 +43,7 @@
   }
 
   // ---- left rail: live activity feed of AI-generated structure ----
-  const FEED_ICON = { theme: '✦', bridge: '↔', refine: '✎', heuristic: '◆', factcheck: '✓', boundary: '⟂', principle: '↳', merge: '∪', abstract: '❖', elaborate: '＋', paper: '⎙' };
+  const FEED_ICON = { theme: '✦', bridge: '↔', refine: '✎', heuristic: '◆', factcheck: '✓', boundary: '⟂', principle: '↳', merge: '∪', abstract: '❖', elaborate: '＋', paper: '⎙', extension: '⚙' };
   let lastFeedSig = '';
   let selectedFeedId = null;   // selected feed line (for expand + /saymore target)
   let selectedRef = null;      // the graph element it points to
@@ -133,10 +133,16 @@
       case '/organise': case '/organize': flashCmd('Organising…'); LoomGraph.organise(); break;
       case '/sessions': RhizomeLibrary.show(); break;
       case '/auto': toggleAuto(); break;
+      case '/search': RhizomeSearch.show(raw.slice(cmd.length).trim()); break;
       case '/saymore':
         if (!selectedRef) { flashCmd('Select a feed item first'); break; }
         flashCmd('Elaborating…'); post('/api/saymore', { id: selectedRef }); break;
-      default: flashCmd('Unknown command');
+      default: {
+        // Unknown to the app shell → try the extension registry (e.g. /obsidian, /index).
+        flashCmd('Running ' + cmd + '…');
+        post('/api/command', { cmd, args: raw.slice(cmd.length).trim() })
+          .then((r) => { if (r && r.status === 404) flashCmd('Unknown command'); });
+      }
     }
   }
 

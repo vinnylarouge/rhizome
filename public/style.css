@@ -366,3 +366,16 @@ body { display: flex; flex-direction: column; }
 .sr-title { font-size: 13.5px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sr-meta { font-size: 11px; color: var(--ink-dim); margin-top: 2px; }
 .session-list .empty { color: var(--ink-dim); font-size: 12.5px; padding: 14px 4px; }
+
+/* ---- search overlay ---- */
+#searchOverlay input[type="text"] {
+  width: 100%; box-sizing: border-box; background: var(--bg-rail); color: var(--ink);
+  border: 1px solid var(--edge); border-radius: 8px; padding: 10px 12px; font-size: 15px;
+}
+.search-mode { font-size: 11px; color: var(--ink-dim); margin: 8px 2px 14px; min-height: 14px; }
+.search-row {
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; background: var(--bg-rail);
+}
+.search-row:hover { border-color: var(--edge); }
+.search-row .sr-title { white-space: normal; font-size: 13px; }

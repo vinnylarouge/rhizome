@@ -39,14 +39,26 @@
 
   <footer id="scratch">
     <div class="cmd-hint">
-      commands · <b>/auto</b> auto-pilot (cycles every 30s) · <b>/organise</b> group · <b>/abduct</b> values &amp; questions ·
-      <b>/abstract</b> metaphors &amp; frames · <b>/chunk</b> split long · <b>/merge</b> tidy themes · select a line then <b>/saymore</b>
+      commands · <b>/auto</b> auto-pilot · <b>/organise</b> group · <b>/abduct</b> infer · <b>/abstract</b> frames ·
+      <b>/chunk</b> split · <b>/merge</b> tidy · <b>/saymore</b> elaborate · <b>/sessions</b> · <b>/search</b> · <b>/obsidian</b> export · <b>/compile</b> report
     </div>
     <div class="scratch-row">
       <textarea id="noteInput" rows="1" placeholder="Jot a note — shorthand & typos are fine, AI tidies them…  ⏎ to commit · Shift+⏎ for newline"></textarea>
       <button id="commitBtn" class="commit">Commit ⏎</button>
     </div>
   </footer>
+
+  <div id="searchOverlay" class="overlay" hidden>
+    <div class="overlay-panel">
+      <div class="overlay-head">
+        <span class="overlay-title">⌕ Search all sessions</span>
+        <button id="searchClose" class="pill">✕ Close</button>
+      </div>
+      <input id="searchInput" type="text" placeholder="Search notes and themes across every session…" />
+      <div id="searchMode" class="search-mode"></div>
+      <div id="searchResults" class="session-list"></div>
+    </div>
+  </div>
 
   <div id="libraryOverlay" class="overlay" hidden>
     <div class="overlay-panel">
@@ -71,6 +83,7 @@
 
   <script src="/graph.js"></script>
   <script src="/library.js"></script>
+  <script src="/search.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

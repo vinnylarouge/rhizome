@@ -5,3 +5,8 @@ data/
 dist/
 .playwright-mcp/
 .DS_Store
+
+# local replay WIP — contains a real (Chatham House) session; never publish
+site/
+public/replay.html
+scripts/record-replay.mjs

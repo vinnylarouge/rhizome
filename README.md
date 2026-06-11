@@ -1,5 +1,11 @@
 # Rhizome
 
+<p align="center">
+  <a href="https://github.com/vinnylarouge/rhizome/releases/latest">
+    <img src="https://img.shields.io/badge/Install%20for%20macOS-Download%20DMG-e8b04b?style=for-the-badge&logo=apple&logoColor=white" alt="Install Rhizome for macOS" />
+  </a>
+</p>
+
 Type terse scribe notes during a discussion; the room watches a knowledge graph
 self-organise, with relevant **heuristics** and live **fact-checks / boundary
 conditions** streaming into the margins. Afterwards: a cited LaTeX report
@@ -18,7 +24,17 @@ grown into a macOS app with three axes of configurability:
 - **Extensions** — Obsidian export and AI search ship as built-in extensions;
   drop your own in `…/Rhizome/extensions/<name>/index.mjs`.
 
-## Quick start
+## Install
+
+**[Download the latest DMG](https://github.com/vinnylarouge/rhizome/releases/latest)**, drag
+Rhizome to Applications, then **right-click → Open** the first time (the build is
+unsigned, so macOS asks once). Apple Silicon only for now.
+
+Add an OpenAI API key — or point a tier at a local model server — in
+**Settings (⚙)** and you're live. Without any provider, note-taking and the
+graph still work; only the AI enrichment waits.
+
+## Quick start (from source)
 
 **As the app:**
 
@@ -104,6 +120,16 @@ sessions.
 - **Cores / extensions / settings** are data — edit and go.
 - **The app**: `Rhizome ▸ Update from Git…` (or `npm run update`) pulls this
   repo, runs the tests, rebuilds, swaps `/Applications/Rhizome.app`, relaunches.
+
+## Releasing
+
+```bash
+npm version minor          # bump + tag
+npm run dist               # build dist/Rhizome-<v>-arm64.dmg
+gh release create v<v> dist/Rhizome-*.dmg --title "Rhizome <v>" --generate-notes
+```
+
+The install button always points at the newest release.
 
 ## Morning-of checklist
 

@@ -2,7 +2,7 @@
   "name": "rhizome",
   "productName": "Rhizome",
   "version": "2.1.0",
-  "description": "Rhizome — live discussion boards that self-organise into knowledge graphs, with swappable cores, local or API models, Obsidian export and cross-session AI search.",
+  "description": "Rhizome \u2014 live discussion boards that self-organise into knowledge graphs, with swappable cores, local or API models, Obsidian export and cross-session AI search.",
   "author": "Vincent Wang <vincentwangsemailaddress@gmail.com>",
   "repository": {
     "type": "git",
@@ -19,7 +19,8 @@
     "export": "node scripts/export.js",
     "cost": "node scripts/cost.js",
     "reset": "node scripts/reset.js",
-    "dist:linux": "electron-builder --linux"
+    "dist:linux": "electron-builder --linux",
+    "dist:win": "electron-builder --win nsis"
   },
   "dependencies": {
     "ws": "^8.18.0"
@@ -74,6 +75,21 @@
       "category": "Office",
       "synopsis": "Live discussion boards that self-organise into knowledge graphs",
       "maintainer": "Vincent Wang <vincentwangsemailaddress@gmail.com>"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "Rhizome-Setup-${version}.exe"
     }
   }
 }

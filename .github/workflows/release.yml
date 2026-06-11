@@ -21,6 +21,8 @@ jobs:
             args: --mac dmg
           - os: ubuntu-latest
             args: --linux
+          - os: windows-latest
+            args: --win nsis
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -38,4 +40,5 @@ jobs:
             dist/*.dmg
             dist/*.AppImage
             dist/*.deb
+            dist/*.exe
           fail_on_unmatched_files: false

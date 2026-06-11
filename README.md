@@ -7,6 +7,9 @@
   <a href="https://github.com/vinnylarouge/rhizome/releases/latest">
     <img src="https://img.shields.io/badge/Install%20for%20Linux-AppImage%20%C2%B7%20deb-4ea0e0?style=for-the-badge&logo=linux&logoColor=white" alt="Install Rhizome for Linux" />
   </a>
+  <a href="https://github.com/vinnylarouge/rhizome/releases/latest">
+    <img src="https://img.shields.io/badge/Install%20for%20Windows-Setup.exe-b483e6?style=for-the-badge&logoColor=white" alt="Install Rhizome for Windows" />
+  </a>
 </p>
 
 Type terse scribe notes during a discussion; the room watches a knowledge graph
@@ -43,6 +46,11 @@ chmod +x Rhizome-*.AppImage && ./Rhizome-*.AppImage
 
 (needs FUSE, as most AppImages do — or run with `--appimage-extract-and-run`).
 On Debian/Ubuntu the `.deb` works too: `sudo apt install ./rhizome_*_amd64.deb`.
+
+**Windows** (x64): download and run `Rhizome-Setup-*.exe` (per-user install, no
+admin). The build is unsigned, so SmartScreen asks once — **More info → Run
+anyway**. "Update from Git" on Windows opens the releases page instead; run the
+new installer and it updates in place.
 
 Add an OpenAI API key — or point a tier at a local model server — in
 **Settings (⚙)** and you're live. Without any provider, note-taking and the
@@ -139,12 +147,12 @@ sessions.
 
 ```bash
 npm version minor              # bump + tag
-git push --follow-tags         # CI builds macOS + Linux, tests both, attaches installers
+git push --follow-tags         # CI builds + tests macOS, Linux and Windows, attaches installers
 ```
 
 GitHub Actions (`.github/workflows/release.yml`) does the rest; the install
 buttons always point at the newest release. Local builds: `npm run dist`
-(macOS) / `npm run dist:linux`.
+(macOS) / `npm run dist:linux` / `npm run dist:win`.
 
 ## Morning-of checklist
 

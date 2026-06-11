@@ -116,6 +116,18 @@ function shareUrl() {
 // Uses the repo this app was built from (settings.repoPath overrides; unpackaged
 // runs use the repo the source is in).
 function updateFromGit() {
+  // Windows installs come from the NSIS installer, not a git checkout — the
+  // update path is simply the newest installer from the releases page.
+  if (process.platform === 'win32') {
+    dialog.showMessageBox(win, {
+      message: 'Update Rhizome',
+      detail: 'Opening the releases page — download and run the latest installer; it updates in place.',
+      buttons: ['Open releases', 'Cancel'],
+    }).then(({ response }) => {
+      if (response === 0) shell.openExternal('https://github.com/vinnylarouge/rhizome/releases/latest');
+    });
+    return;
+  }
   let repo = REPO_ROOT;
   try {
     const settings = JSON.parse(fs.readFileSync(path.join(app.getPath('userData'), 'settings.json'), 'utf8'));

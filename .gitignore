@@ -10,3 +10,4 @@ dist/
 site/
 public/replay.html
 scripts/record-replay.mjs
+scripts/record-gif.mjs

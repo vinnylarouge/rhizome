@@ -1,6 +1,10 @@
 # Rhizome
 
 <p align="center">
+  <img src="docs/demo.gif" alt="Rhizome replaying a live discussion: scribe notes stream in and self-organise into a knowledge graph with themes, bridges and live fact-checks" width="900" />
+</p>
+
+<p align="center">
   <a href="https://github.com/vinnylarouge/rhizome/releases/latest">
     <img src="https://img.shields.io/badge/Install%20for%20macOS-Download%20DMG-e8b04b?style=for-the-badge&logo=apple&logoColor=white" alt="Install Rhizome for macOS" />
   </a>

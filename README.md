@@ -4,6 +4,9 @@
   <a href="https://github.com/vinnylarouge/rhizome/releases/latest">
     <img src="https://img.shields.io/badge/Install%20for%20macOS-Download%20DMG-e8b04b?style=for-the-badge&logo=apple&logoColor=white" alt="Install Rhizome for macOS" />
   </a>
+  <a href="https://github.com/vinnylarouge/rhizome/releases/latest">
+    <img src="https://img.shields.io/badge/Install%20for%20Linux-AppImage%20%C2%B7%20deb-4ea0e0?style=for-the-badge&logo=linux&logoColor=white" alt="Install Rhizome for Linux" />
+  </a>
 </p>
 
 Type terse scribe notes during a discussion; the room watches a knowledge graph
@@ -26,9 +29,20 @@ grown into a macOS app with three axes of configurability:
 
 ## Install
 
-**[Download the latest DMG](https://github.com/vinnylarouge/rhizome/releases/latest)**, drag
-Rhizome to Applications, then **right-click → Open** the first time (the build is
-unsigned, so macOS asks once). Apple Silicon only for now.
+All installers are on the **[latest release](https://github.com/vinnylarouge/rhizome/releases/latest)**.
+
+**macOS** (Apple Silicon): download the `.dmg`, drag Rhizome to Applications,
+then **right-click → Open** the first time (the build is unsigned, so macOS
+asks once).
+
+**Linux** (x64 or arm64): download the `.AppImage`, then
+
+```bash
+chmod +x Rhizome-*.AppImage && ./Rhizome-*.AppImage
+```
+
+(needs FUSE, as most AppImages do — or run with `--appimage-extract-and-run`).
+On Debian/Ubuntu the `.deb` works too: `sudo apt install ./rhizome_*_amd64.deb`.
 
 Add an OpenAI API key — or point a tier at a local model server — in
 **Settings (⚙)** and you're live. Without any provider, note-taking and the
@@ -124,12 +138,13 @@ sessions.
 ## Releasing
 
 ```bash
-npm version minor          # bump + tag
-npm run dist               # build dist/Rhizome-<v>-arm64.dmg
-gh release create v<v> dist/Rhizome-*.dmg --title "Rhizome <v>" --generate-notes
+npm version minor              # bump + tag
+git push --follow-tags         # CI builds macOS + Linux, tests both, attaches installers
 ```
 
-The install button always points at the newest release.
+GitHub Actions (`.github/workflows/release.yml`) does the rest; the install
+buttons always point at the newest release. Local builds: `npm run dist`
+(macOS) / `npm run dist:linux`.
 
 ## Morning-of checklist
 

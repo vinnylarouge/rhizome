@@ -3,7 +3,7 @@
   "productName": "Rhizome",
   "version": "2.0.0",
   "description": "Rhizome \u2014 live discussion boards that self-organise into knowledge graphs, with swappable cores, local or API models, Obsidian export and cross-session AI search.",
-  "author": "Vincent Wang",
+  "author": "Vincent Wang <vincentwangsemailaddress@gmail.com>",
   "repository": {
     "type": "git",
     "url": "https://github.com/vinnylarouge/rhizome.git"
@@ -18,7 +18,8 @@
     "update": "bash scripts/update.sh",
     "export": "node scripts/export.js",
     "cost": "node scripts/cost.js",
-    "reset": "node scripts/reset.js"
+    "reset": "node scripts/reset.js",
+    "dist:linux": "electron-builder --linux"
   },
   "dependencies": {
     "ws": "^8.18.0"
@@ -53,6 +54,26 @@
       "target": "dmg",
       "category": "public.app-category.productivity",
       "identity": null
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Office",
+      "synopsis": "Live discussion boards that self-organise into knowledge graphs",
+      "maintainer": "Vincent Wang <vincentwangsemailaddress@gmail.com>"
     }
   }
 }

@@ -8,7 +8,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -128,13 +128,36 @@ function updateFromGit() {
   }
   dialog.showMessageBox(win, {
     message: 'Updating Rhizome',
-    detail: 'A Terminal window will pull, rebuild, reinstall to /Applications and relaunch. This app will quit.',
+    detail: 'A terminal window will pull, rebuild, reinstall and relaunch. This app will quit.',
     buttons: ['Update', 'Cancel'],
   }).then(({ response }) => {
     if (response !== 0) return;
-    spawn('open', ['-a', 'Terminal', script], { detached: true });
+    runScriptInTerminal(script);
     setTimeout(() => app.quit(), 500);
   });
+}
+
+// Run a shell script where the user can watch it: Terminal.app on macOS, the
+// first available terminal emulator on Linux, headless (logged) as a last resort.
+function runScriptInTerminal(script) {
+  if (process.platform === 'darwin') {
+    spawn('open', ['-a', 'Terminal', script], { detached: true });
+    return;
+  }
+  const have = (cmd) => spawnSync('which', [cmd]).status === 0;
+  const emulators = [
+    ['x-terminal-emulator', ['-e', `bash "${script}"`]],
+    ['gnome-terminal', ['--', 'bash', script]],
+    ['konsole', ['-e', 'bash', script]],
+    ['xterm', ['-e', 'bash', script]],
+  ];
+  for (const [cmd, args] of emulators) {
+    if (have(cmd)) { spawn(cmd, args, { detached: true }); return; }
+  }
+  const log = path.join(app.getPath('userData'), 'update.log');
+  const out = fs.openSync(log, 'a');
+  spawn('bash', [script], { detached: true, stdio: ['ignore', out, out] }).unref();
+  dialog.showMessageBox(win, { message: 'Updating in the background', detail: `No terminal emulator found — progress is logging to ${log}.` });
 }
 
 ipcMain.handle('rhizome:pickFolder', async () => {

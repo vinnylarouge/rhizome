@@ -1,11 +1,16 @@
 {
-  "name": "loom",
-  "version": "1.0.0",
-  "description": "Live discussion loom — scribe notes that self-organise into an emergent knowledge graph with live heuristics and fact-checks.",
+  "name": "rhizome",
+  "productName": "Rhizome",
+  "version": "2.0.0",
+  "description": "Rhizome — live discussion boards that self-organise into knowledge graphs, with swappable cores, local or API models, Obsidian export and cross-session AI search.",
   "type": "module",
+  "main": "electron/main.js",
   "scripts": {
-    "start": "node src/server.js",
+    "start": "electron .",
+    "serve": "node src/server.js",
     "test": "node --test",
+    "dist": "electron-builder --mac dmg",
+    "update": "bash scripts/update.sh",
     "export": "node scripts/export.js",
     "cost": "node scripts/cost.js",
     "reset": "node scripts/reset.js"
@@ -13,7 +18,36 @@
   "dependencies": {
     "ws": "^8.18.0"
   },
+  "devDependencies": {
+    "electron": "^36.0.0",
+    "electron-builder": "^25.0.0"
+  },
   "engines": {
     "node": ">=18"
+  },
+  "build": {
+    "appId": "com.vwm.rhizome",
+    "productName": "Rhizome",
+    "asar": false,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**",
+      "src/**",
+      "public/**",
+      "cores/**",
+      "heuristics/**",
+      "templates/**",
+      "docs/style-guide.md",
+      "docs/paper-grammar.md",
+      "package.json",
+      "node_modules/ws/**"
+    ],
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.productivity",
+      "identity": null
+    }
   }
 }

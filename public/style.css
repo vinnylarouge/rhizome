@@ -333,6 +333,8 @@ body { display: flex; flex-direction: column; }
   background: rgba(10, 11, 15, 0.82); backdrop-filter: blur(6px);
   display: flex; align-items: center; justify-content: center;
 }
+/* display:flex above outranks the UA's [hidden]{display:none} — restate it. */
+.overlay[hidden] { display: none; }
 .overlay-panel {
   width: min(980px, 92vw); max-height: 86vh; overflow: auto;
   background: var(--panel); border: 1px solid var(--edge); border-radius: 12px;

@@ -198,8 +198,10 @@ const server = http.createServer(async (req, res) => {
   if (url.startsWith('/api/') && url !== '/api/health' && !store.hasActive() && req.method === 'POST') {
     return json(res, 409, { error: 'no-session' });
   }
-  if (req.method === 'GET' && url === '/api/health')
-    return json(res, 200, { ok: true, tiers: describeTiers(), paused: store.get().paused, notes: store.get().notes.length });
+  if (req.method === 'GET' && url === '/api/health') {
+    const s = store.get(); // null on first boot, before any session exists
+    return json(res, 200, { ok: true, tiers: describeTiers(), session: !!s, paused: s ? s.paused : false, notes: s ? s.notes.length : 0 });
+  }
 
   // Serve a compiled paper artifact (PDF / .tex / receipts.md), sandboxed to the
   // active session's papers/ directory.

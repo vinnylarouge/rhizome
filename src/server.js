@@ -325,7 +325,7 @@ wss.on('connection', (ws) => {
 });
 
 server.listen(PORT, async () => {
-  console.log(`\n  ✦ Loom running →  http://localhost:${PORT}`);
+  console.log(`\n  ✳ Rhizome running →  http://localhost:${PORT}`);
   for (const [tier, desc] of Object.entries(describeTiers())) console.log(`    ${tier.padEnd(10)} ${desc}`);
   process.stdout.write('    self-test (fast-tier reachability): ');
   const ok = await selfTest();

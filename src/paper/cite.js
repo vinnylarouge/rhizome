@@ -30,7 +30,7 @@ async function fetchText(url, timeoutMs = 15000) {
   try {
     const res = await fetch(url, {
       signal: ctrl.signal,
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; LoomPaperBot/1.0)', Accept: 'text/html,*/*' },
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; RhizomePaperBot/1.0)', Accept: 'text/html,*/*' },
       redirect: 'follow',
     });
     if (!res.ok) return '';

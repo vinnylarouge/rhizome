@@ -14,7 +14,7 @@ import * as store from './store.js';
 import { loadHeuristics } from './heuristics.js';
 import { processNote, mergeThemesPass, mergeFramesPass, abstractPass, elaborate, chunkPass, abductPass } from './workers.js';
 import { compilePaper } from './paper/compile.js';
-import { MODELS, selfTest } from './llm.js';
+import { describeTiers, selfTest } from './llm.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
@@ -120,7 +120,7 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' && url === '/api/state') return json(res, 200, store.get());
   if (req.method === 'GET' && url === '/api/health')
-    return json(res, 200, { ok: true, models: MODELS, paused: store.get().paused, notes: store.get().notes.length });
+    return json(res, 200, { ok: true, tiers: describeTiers(), paused: store.get().paused, notes: store.get().notes.length });
 
   // Serve a compiled paper artifact (PDF / .tex / receipts.md) from data/, sandboxed.
   if (req.method === 'GET' && url === '/api/paper') {
@@ -237,8 +237,8 @@ wss.on('connection', (ws) => {
 
 server.listen(PORT, async () => {
   console.log(`\n  ✦ Loom running →  http://localhost:${PORT}`);
-  console.log(`    models: fast=${MODELS.FAST} (effort ${MODELS.FAST_EFFORT}), strong=${MODELS.STRONG} (effort ${MODELS.STRONG_EFFORT}), paper=${MODELS.PAPER} (/compile)`);
-  process.stdout.write('    self-test (OpenAI reachability): ');
+  for (const [tier, desc] of Object.entries(describeTiers())) console.log(`    ${tier.padEnd(10)} ${desc}`);
+  process.stdout.write('    self-test (fast-tier reachability): ');
   const ok = await selfTest();
   console.log(ok ? 'PASS ✓' : 'FAIL ✗  (check OPENAI_API_KEY / network — note-taking still works, enrichment will not)');
   console.log('');

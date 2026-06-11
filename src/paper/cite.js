@@ -7,7 +7,7 @@
 // the quote IS the receipt. Otherwise the item is flagged [unsupported]; nothing is
 // ever fabricated. If web_search is unavailable, every item is flagged unsupported.
 
-import { responsesWebSearch, chatJSON, MODELS } from '../llm.js';
+import { responsesWebSearch, chatJSON } from '../llm.js';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
@@ -82,7 +82,7 @@ async function verify(target, url, mode = 'evidence') {
   if (!page || page.length < 200) return null; // can't read it -> can't verify -> drop
   const head = mode === 'provenance' ? 'CONCEPT' : 'CLAIM';
   const out = await chatJSON({
-    model: MODELS.PAPER,
+    tier: 'paper',
     system: VERIFY_SYS[mode],
     user: `${head}: "${target}"\n\nPAGE TEXT (excerpt):\n${page.slice(0, 6000)}`,
     label: 'cite-verify',

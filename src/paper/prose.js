@@ -5,15 +5,14 @@
 // fixes residual AI tells without flattening. Cite-bearing items get \autocite at
 // render time; the model never touches citation keys.
 
-import { chatJSON, MODELS } from '../llm.js';
+import { chatJSON } from '../llm.js';
 import { escapeTeX } from './latex.js';
 import { STYLE_CONSTRAINTS, smellCheck } from './style.js';
 
-const M = MODELS.PAPER;
 
 async function gen(sys, userObj, label, voice, maxTokens = 1600) {
   const out = await chatJSON({
-    model: M,
+    tier: 'paper',
     system: `${sys}\n\n${voice}\n\n${STYLE_CONSTRAINTS}`,
     user: typeof userObj === 'string' ? userObj : JSON.stringify(userObj),
     label: 'prose:' + label,
@@ -208,7 +207,7 @@ export async function composePaper(plan, { onProgress = () => {} } = {}) {
   const setters = [];
   collectStrings(renders, flat, setters);
   onProgress('Smell-check: removing residual AI tells…');
-  const cleaned = await smellCheck(flat, M);
+  const cleaned = await smellCheck(flat);
   cleaned.forEach((s, i) => setters[i](s));
 
   const sections = present

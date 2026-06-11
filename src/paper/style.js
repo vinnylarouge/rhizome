@@ -38,12 +38,12 @@ const SMELL_SYS =
 // Final smell-check pass over an array of plain-prose strings. Returns a same-length
 // array with only the banned tells fixed; falls back to the input unchanged on any
 // shape mismatch (never drops, reorders, or flattens content).
-export async function smellCheck(lines, model) {
+export async function smellCheck(lines) {
   const real = lines.filter((s) => s && s.trim());
   if (!real.length) return lines;
   const budget = Math.min(8000, 800 + Math.ceil(lines.join(' ').length / 1.5));
   const out = await chatJSON({
-    model,
+    tier: 'paper',
     system: SMELL_SYS,
     user:
       'Fix only the banned tells; leave everything else (including length and warmth) exactly ' +

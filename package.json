@@ -1,8 +1,8 @@
 {
   "name": "rhizome",
   "productName": "Rhizome",
-  "version": "2.0.0",
-  "description": "Rhizome \u2014 live discussion boards that self-organise into knowledge graphs, with swappable cores, local or API models, Obsidian export and cross-session AI search.",
+  "version": "2.1.0",
+  "description": "Rhizome — live discussion boards that self-organise into knowledge graphs, with swappable cores, local or API models, Obsidian export and cross-session AI search.",
   "author": "Vincent Wang <vincentwangsemailaddress@gmail.com>",
   "repository": {
     "type": "git",

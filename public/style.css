@@ -326,3 +326,43 @@ body { display: flex; flex-direction: column; }
 }
 .commit:hover { filter: brightness(1.07); }
 .commit:active { transform: scale(.97); }
+
+/* ---- overlays (session library / settings / search) ---- */
+.overlay {
+  position: fixed; inset: 0; z-index: 40;
+  background: rgba(10, 11, 15, 0.82); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+}
+.overlay-panel {
+  width: min(980px, 92vw); max-height: 86vh; overflow: auto;
+  background: var(--panel); border: 1px solid var(--edge); border-radius: 12px;
+  padding: 22px 26px; box-shadow: 0 18px 60px rgba(0, 0, 0, 0.5);
+}
+.overlay-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.overlay-title { font-size: 17px; letter-spacing: 0.4px; color: var(--ink); }
+.col-head { font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--ink-dim); margin-bottom: 10px; }
+
+.library-cols { display: grid; grid-template-columns: 340px 1fr; gap: 28px; }
+.library-new input[type="text"] {
+  width: 100%; box-sizing: border-box; background: var(--bg-rail); color: var(--ink);
+  border: 1px solid var(--edge); border-radius: 8px; padding: 9px 11px; font-size: 14px; margin-bottom: 12px;
+}
+.core-cards { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.core-card {
+  border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; cursor: pointer;
+  background: var(--bg-rail); transition: border-color 0.15s;
+}
+.core-card:hover { border-color: var(--edge); }
+.core-card.selected { border-color: var(--gold-soft); box-shadow: 0 0 0 1px var(--gold-soft) inset; }
+.cc-name { font-size: 13.5px; color: var(--ink); margin-bottom: 3px; }
+.cc-desc { font-size: 11.5px; color: var(--ink-dim); line-height: 1.45; }
+
+.session-list { display: flex; flex-direction: column; gap: 8px; }
+.session-row {
+  display: flex; align-items: center; gap: 10px;
+  border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; background: var(--bg-rail);
+}
+.sr-main { flex: 1; min-width: 0; }
+.sr-title { font-size: 13.5px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sr-meta { font-size: 11px; color: var(--ink-dim); margin-top: 2px; }
+.session-list .empty { color: var(--ink-dim); font-size: 12.5px; padding: 14px 4px; }

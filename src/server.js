@@ -8,7 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 
-import { loadEnv } from './paths.js';
+import { loadEnv, activeSessionDir } from './paths.js';
 import * as settings from './settings.js';
 import * as cores from './cores.js';
 import * as store from './store.js';
@@ -122,15 +122,44 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' && url === '/api/state') return json(res, 200, store.get());
   if (req.method === 'GET' && url === '/api/cores') return json(res, 200, { cores: cores.list() });
+
+  // --- session library ---
+  if (req.method === 'GET' && url === '/api/sessions') return json(res, 200, { sessions: store.listSessions() });
+  if (req.method === 'POST' && url === '/api/sessions') {
+    const body = await readBody(req);
+    const s = store.createSession({ title: (body.title || '').trim() || 'Live Discussion', coreId: body.coreId });
+    broadcast();
+    return json(res, 200, { ok: true, id: s.session.id });
+  }
+  if (req.method === 'POST' && url === '/api/sessions/open') {
+    const body = await readBody(req);
+    const s = store.openSession(body.id);
+    if (!s) return json(res, 404, { error: 'not found' });
+    broadcast();
+    return json(res, 200, { ok: true });
+  }
+  if (req.method === 'POST' && url === '/api/sessions/archive') {
+    const body = await readBody(req);
+    const ok = store.archiveSession(body.id);
+    broadcast();
+    return json(res, ok ? 200 : 404, { ok });
+  }
+
+  // Everything below operates on the active session.
+  if (url.startsWith('/api/') && url !== '/api/health' && !store.hasActive() && req.method === 'POST') {
+    return json(res, 409, { error: 'no-session' });
+  }
   if (req.method === 'GET' && url === '/api/health')
     return json(res, 200, { ok: true, tiers: describeTiers(), paused: store.get().paused, notes: store.get().notes.length });
 
-  // Serve a compiled paper artifact (PDF / .tex / receipts.md) from data/, sandboxed.
+  // Serve a compiled paper artifact (PDF / .tex / receipts.md), sandboxed to the
+  // active session's papers/ directory.
   if (req.method === 'GET' && url === '/api/paper') {
     const file = (new URL(req.url, 'http://x').searchParams.get('file') || '').trim();
-    const dataDir = path.join(ROOT, 'data');
-    const full = path.join(dataDir, path.normalize(file));
-    if (!file || !full.startsWith(dataDir + path.sep)) { res.writeHead(403); return res.end('forbidden'); }
+    const papersDir = activeSessionDir() && path.join(activeSessionDir(), 'papers');
+    if (!papersDir) { res.writeHead(404); return res.end('no active session'); }
+    const full = path.join(papersDir, path.normalize(file));
+    if (!file || !full.startsWith(papersDir + path.sep)) { res.writeHead(403); return res.end('forbidden'); }
     const ext = path.extname(full);
     const ctype = ext === '.pdf' ? 'application/pdf' : ext === '.md' ? 'text/markdown; charset=utf-8' : ext === '.tex' ? 'text/plain; charset=utf-8' : 'application/octet-stream';
     return fs.readFile(full, (err, buf) => {
@@ -142,6 +171,7 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'POST' && url === '/api/note') {
     const body = await readBody(req);
+    if (!store.hasActive()) return json(res, 409, { error: 'no-session' });
     if (!body.text || !body.text.trim()) return json(res, 400, { error: 'empty' });
     const note = store.addNote({ text: body.text });
     broadcast();                                      // node appears instantly, no LLM in the path
@@ -195,7 +225,7 @@ const server = http.createServer(async (req, res) => {
     enqueue(async () => {
       broadcastStatus('Compiling the report…');
       try {
-        const out = await compilePaper(store.get(), { outDir: path.join(ROOT, 'data'), genre, onProgress: (m) => broadcastStatus(m) });
+        const out = await compilePaper(store.get(), { outDir: path.join(activeSessionDir(), 'papers'), genre, onProgress: (m) => broadcastStatus(m) });
         if (out.ok) {
           const rel = `${out.stem}/${out.stem}.pdf`;
           const link = '/api/paper?file=' + encodeURIComponent(rel);

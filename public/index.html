@@ -15,6 +15,7 @@
       <span class="title" id="sessionTitle" contenteditable="true" spellcheck="false">Live Discussion</span>
     </div>
     <div class="controls">
+      <button id="libraryBtn" class="pill" title="Session library (/sessions)">⛁ Sessions</button>
       <span id="autoBadge" class="auto-badge" hidden>⟳ AUTO</span>
       <span id="statusPill" class="status-pill" hidden></span>
       <span id="counts" class="counts"></span>
@@ -47,7 +48,29 @@
     </div>
   </footer>
 
+  <div id="libraryOverlay" class="overlay" hidden>
+    <div class="overlay-panel">
+      <div class="overlay-head">
+        <span class="overlay-title">✳ Rhizome — sessions</span>
+        <button id="libraryClose" class="pill" hidden>✕ Close</button>
+      </div>
+      <div class="library-cols">
+        <div class="library-new">
+          <div class="col-head">New session</div>
+          <input id="newSessionTitle" type="text" placeholder="Session title…" />
+          <div id="coreCards" class="core-cards"></div>
+          <button id="newSessionStart" class="commit">Start session</button>
+        </div>
+        <div class="library-list">
+          <div class="col-head">Previous sessions</div>
+          <div id="sessionList" class="session-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="/graph.js"></script>
+  <script src="/library.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

@@ -1,19 +1,15 @@
-// reset.js — archive the current session and start clean. Run: `npm run reset`.
-// Safe: it never deletes, it renames session.json/events.jsonl with a timestamp.
+// reset.js — archive the most recent session so the next start is a clean board.
+// Run: `npm run reset`. Safe: it never deletes — the session moves (files intact)
+// to sessions/.archive/, exactly like Archive in the in-app library.
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { newestSessionDir, sessionsRoot } from './session-dir.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA = path.join(__dirname, '..', 'data');
-const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-
-for (const f of ['session.json', 'events.jsonl', 'costs.jsonl']) {
-  const p = path.join(DATA, f);
-  if (fs.existsSync(p)) {
-    const archived = path.join(DATA, `archive-${stamp}.${f}`);
-    fs.renameSync(p, archived);
-    console.log(`archived ${f} → ${path.basename(archived)}`);
-  }
-}
-console.log('Session reset. Restart the server (npm start) for a clean board.');
+const dir = newestSessionDir();
+if (!dir) { console.log('No sessions to reset.'); process.exit(0); }
+const id = path.basename(dir);
+const dst = path.join(sessionsRoot(), '.archive', id);
+fs.mkdirSync(path.dirname(dst), { recursive: true });
+fs.renameSync(dir, dst);
+console.log(`archived session ${id} → sessions/.archive/${id}`);
+console.log('Next start shows the session library (or resumes the next-newest session).');

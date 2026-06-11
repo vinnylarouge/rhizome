@@ -1,26 +1,30 @@
-// store.js — crash-resilient session state.
-// Source of truth = data/session.json (atomic-written on every change).
-// data/events.jsonl = append-only audit log (independent backup of every mutation).
+// store.js — crash-resilient, multi-session state.
+// Sessions live at RHIZOME_HOME/sessions/<id>/ — session.json (atomic-written on
+// every change), events.jsonl (append-only audit log), costs.jsonl, papers/.
 // Nothing here ever calls the network; note-taking must never depend on the LLM.
+// Nothing is ever deleted: archiving moves a session under sessions/.archive/.
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { home } from './paths.js';
+import { home, setActiveSessionDir } from './paths.js';
 import * as cores from './cores.js';
 
-const STATE_FILE = () => path.join(home(), 'session.json');
-const EVENTS_FILE = () => path.join(home(), 'events.jsonl');
+const SESSIONS_DIR = () => path.join(home(), 'sessions');
 
-let state = null;
+let state = null;       // active session state (null = no session open)
+let sessionDir = null;  // its directory
 let saveTimer = null;
+
+const STATE_FILE = () => path.join(sessionDir, 'session.json');
+const EVENTS_FILE = () => path.join(sessionDir, 'events.jsonl');
 
 function anchorTheme(a) {
   return { id: a.id, label: a.label, kind: 'anchor', summary: '', noteIds: [] };
 }
 
-function freshState(core) {
+function freshState(core, id, title) {
   return {
-    session: { id: 'rhizome-' + Date.now(), title: 'Live Discussion', coreId: core.id, startedAt: new Date().toISOString() },
+    session: { id, title: title || 'Live Discussion', coreId: core.id, startedAt: new Date().toISOString() },
     core: cores.clientSummary(core), // what the browser needs: anchors, parents, colours
     paused: false,
     notes: [],
@@ -37,43 +41,156 @@ function freshState(core) {
 
 const trunc = (s, n) => (s && s.length > n ? s.slice(0, n) + '…' : s || '');
 
+const slug = (title) =>
+  ((title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40)) || 'session';
+
+const stamp = () => new Date().toISOString().slice(0, 19).replace(/[:T]/g, '');
+
+// ---- session lifecycle ------------------------------------------------------
+
+// Startup: migrate any legacy single-session loom files, then resume the most
+// recently touched session (today's behaviour). No sessions → null; the UI shows
+// the library so the facilitator picks a core and a title.
 export function load() {
-  let loaded = null;
-  if (fs.existsSync(STATE_FILE())) {
-    try {
-      loaded = JSON.parse(fs.readFileSync(STATE_FILE(), 'utf8'));
-    } catch (e) {
-      console.error('[store] session.json unreadable, backing up and starting fresh:', e.message);
-      fs.renameSync(STATE_FILE(), STATE_FILE() + '.corrupt-' + Date.now());
-    }
+  fs.mkdirSync(SESSIONS_DIR(), { recursive: true });
+  migrateLegacy();
+  const list = listSessions();
+  if (list.length) {
+    const opened = openSession(list[0].id);
+    if (opened) return opened;
+  }
+  state = null;
+  sessionDir = null;
+  setActiveSessionDir(null);
+  cores.setActive(cores.get('roundtable')); // a sane default until a session opens
+  return null;
+}
+
+// Pre-rhizome layout: session.json/events.jsonl/costs.jsonl directly in the data
+// dir. Move (never copy/delete) into a proper session folder.
+function migrateLegacy() {
+  const legacyState = path.join(home(), 'session.json');
+  if (!fs.existsSync(legacyState)) return;
+  let title = 'Legacy Session';
+  try { title = JSON.parse(fs.readFileSync(legacyState, 'utf8'))?.session?.title || title; } catch { /* move it anyway */ }
+  const id = `${slug(title)}-${stamp()}`;
+  const dir = path.join(SESSIONS_DIR(), id);
+  fs.mkdirSync(dir, { recursive: true });
+  for (const f of ['session.json', 'events.jsonl', 'costs.jsonl']) {
+    const src = path.join(home(), f);
+    if (fs.existsSync(src)) fs.renameSync(src, path.join(dir, f));
+  }
+  console.log(`[store] migrated legacy session "${title}" → sessions/${id}`);
+}
+
+export function createSession({ title, coreId } = {}) {
+  flush();
+  const core = cores.get(coreId || 'roundtable') || cores.get('roundtable');
+  cores.setActive(core);
+  let id = `${slug(title)}-${stamp()}`;
+  for (let n = 2; fs.existsSync(path.join(SESSIONS_DIR(), id)); n++) id = `${slug(title)}-${stamp()}-${n}`;
+  sessionDir = path.join(SESSIONS_DIR(), id);
+  fs.mkdirSync(path.join(sessionDir, 'papers'), { recursive: true });
+  setActiveSessionDir(sessionDir);
+  state = freshState(core, id, title);
+  persist();
+  logEvent('session-created', { id, title: state.session.title, coreId: core.id });
+  return state;
+}
+
+export function openSession(id) {
+  const dir = path.join(SESSIONS_DIR(), id);
+  const file = path.join(dir, 'session.json');
+  if (!fs.existsSync(file)) return null;
+  flush(); // never lose pending writes from the session being switched away from
+  let loaded;
+  try {
+    loaded = JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch (e) {
+    console.error(`[store] sessions/${id}/session.json unreadable, backing it up:`, e.message);
+    fs.renameSync(file, file + '.corrupt-' + Date.now());
+    return null;
   }
   // The session's core drives anchors/prompts; legacy loom sessions are roundtable.
   const core = cores.get(loaded?.session?.coreId || 'roundtable') || cores.get('roundtable');
   cores.setActive(core);
-  if (loaded) {
-    state = loaded;
-    state.session.coreId = core.id;
-    state.core = cores.clientSummary(core); // recomputed so core edits propagate
-    // Defensive: ensure anchors and feed always exist even if an old file is loaded.
-    for (const a of core.anchors) {
-      if (!state.themes.find((t) => t.id === a.id)) state.themes.unshift(anchorTheme(a));
-    }
-    if (!Array.isArray(state.feed)) state.feed = [];
-    if (!Array.isArray(state.frames)) state.frames = [];
-    console.log(`[store] resumed session with ${state.notes.length} notes`);
-  } else {
-    state = freshState(core);
+  state = loaded;
+  state.session.id = id;
+  state.session.coreId = core.id;
+  state.core = cores.clientSummary(core); // recomputed so core edits propagate
+  // Defensive: ensure anchors and feed always exist even if an old file is loaded.
+  for (const a of core.anchors) {
+    if (!state.themes.find((t) => t.id === a.id)) state.themes.unshift(anchorTheme(a));
   }
+  if (!Array.isArray(state.feed)) state.feed = [];
+  if (!Array.isArray(state.frames)) state.frames = [];
+  sessionDir = dir;
+  setActiveSessionDir(sessionDir);
+  console.log(`[store] opened session "${state.session.title}" (${state.notes.length} notes)`);
   return state;
+}
+
+export function listSessions() {
+  let names = [];
+  try { names = fs.readdirSync(SESSIONS_DIR()); } catch { return []; }
+  const out = [];
+  for (const name of names) {
+    if (name.startsWith('.')) continue; // .archive et al.
+    const file = path.join(SESSIONS_DIR(), name, 'session.json');
+    try {
+      const s = JSON.parse(fs.readFileSync(file, 'utf8'));
+      out.push({
+        id: name,
+        title: s.session?.title || name,
+        coreId: s.session?.coreId || 'roundtable',
+        coreName: s.core?.name || s.session?.coreId || 'roundtable',
+        startedAt: s.session?.startedAt || '',
+        notes: (s.notes || []).filter((n) => !n.derived).length,
+        mtime: fs.statSync(file).mtimeMs,
+      });
+    } catch { /* unreadable/corrupt entries simply aren't listed */ }
+  }
+  return out.sort((a, b) => b.mtime - a.mtime);
+}
+
+// Move a session out of the library, keeping every file (never deletes).
+export function archiveSession(id) {
+  const src = path.join(SESSIONS_DIR(), id);
+  if (!fs.existsSync(src)) return false;
+  if (sessionDir === src) {
+    flush();
+    state = null;
+    sessionDir = null;
+    setActiveSessionDir(null);
+  }
+  const dst = path.join(SESSIONS_DIR(), '.archive', id);
+  fs.mkdirSync(path.dirname(dst), { recursive: true });
+  fs.renameSync(src, dst);
+  return true;
+}
+
+export function hasActive() {
+  return !!state;
 }
 
 export function get() {
   return state;
 }
 
+// Force any debounced write to disk now (used before switching sessions and by tests).
+export function flush() {
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+  if (state && sessionDir) {
+    try { persist(); } catch (e) { console.error('[store] flush failed:', e.message); }
+  }
+}
+
+// ---- persistence ------------------------------------------------------------
+
 // Atomic write: write to a temp file then rename (rename is atomic on the same fs),
 // so a crash mid-write can never leave a half-written, corrupt session.json.
 function persist() {
+  if (!sessionDir) return;
   const tmp = STATE_FILE() + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(state, null, 2));
   fs.renameSync(tmp, STATE_FILE());
@@ -90,6 +207,7 @@ function scheduleSave() {
 }
 
 function logEvent(type, payload) {
+  if (!sessionDir) return;
   try {
     fs.appendFileSync(EVENTS_FILE(), JSON.stringify({ t: new Date().toISOString(), type, payload }) + '\n');
   } catch (e) {
@@ -172,7 +290,7 @@ export function addNote({ text }) {
     id: rid('n'),
     text: text.trim(),   // raw, as typed (kept for the audit log)
     clean: null,         // AI-tidied version shown in the UI (set by triage)
-    parent: null,        // 'values' | 'painpoints' | 'questions' — drives colour
+    parent: null,        // anchor parent key — drives colour
     ts: new Date().toISOString(),
     kind: 'unclassified',
     themeIds: [],

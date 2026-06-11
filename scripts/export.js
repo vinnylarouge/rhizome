@@ -6,8 +6,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DATA = path.join(__dirname, '..', 'data');
+const DATA = (await import('./session-dir.js')).newestSessionDir();
+if (!DATA) { console.error('No sessions to export.'); process.exit(1); }
 const state = JSON.parse(fs.readFileSync(path.join(DATA, 'session.json'), 'utf8'));
 
 const noteById = new Map(state.notes.map((n) => [n.id, n]));

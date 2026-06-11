@@ -29,6 +29,12 @@
 
   function applyState(s) {
     state = s;
+    if (!s) { // no active session — the library overlay takes over
+      RhizomeLibrary.maybeShowForState(null);
+      document.getElementById('sessionTitle').textContent = 'Rhizome';
+      return;
+    }
+    RhizomeLibrary.maybeShowForState(s);
     noteById = new Map(s.notes.map((n) => [n.id, n]));
     document.getElementById('sessionTitle').textContent = s.session.title;
     syncPauseBtn();
@@ -98,7 +104,8 @@
     if (raw[0] === '/') { runCommand(raw); return; }   // slash commands aren't notes
     input.value = ''; autoGrow(); input.focus();
     try {
-      await fetch('/api/note', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: raw }) });
+      const r = await fetch('/api/note', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: raw }) });
+      if (r.status === 409) { input.value = raw; autoGrow(); RhizomeLibrary.show(true); }
     } catch (err) {
       input.value = raw; autoGrow(); // restore so nothing is lost if the post fails
     }
@@ -124,6 +131,7 @@
         break;
       }
       case '/organise': case '/organize': flashCmd('Organising…'); LoomGraph.organise(); break;
+      case '/sessions': RhizomeLibrary.show(); break;
       case '/auto': toggleAuto(); break;
       case '/saymore':
         if (!selectedRef) { flashCmd('Select a feed item first'); break; }
@@ -168,6 +176,9 @@
     input.placeholder = '✓ ' + msg;
     setTimeout(() => { input.placeholder = input.dataset.ph; }, 1800);
   }
+
+  // ---- session library ----
+  document.getElementById('libraryBtn').addEventListener('click', () => RhizomeLibrary.show());
 
   // ---- pause ----
   const pauseBtn = document.getElementById('pauseBtn');
